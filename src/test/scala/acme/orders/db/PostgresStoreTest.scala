@@ -14,7 +14,7 @@ import java.util.UUID
 class PostgresStoreTest extends CatsEffectSuite with TestContainerForAll:
 
   override val containerDef = PostgreSQLContainer.Def(
-    dockerImageName = DockerImageName.parse("postgres:17"),
+    dockerImageName = DockerImageName.parse("postgres:15"),
     databaseName = "test",
     username = "test",
     password = "test"
