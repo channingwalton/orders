@@ -1,0 +1,6 @@
+examples/
+target/
+.bsp/
+.metals/
+.scala-build/
+*.log
