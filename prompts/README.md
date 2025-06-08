@@ -16,6 +16,7 @@ This directory contains all prompts and instructions for the Order Management Sy
 
 ## Feature Prompts
 - [01-user-subscription-status.md](features/01-user-subscription-status.md) - 🟢 **Complete** - Check whether a user is currently subscribed
+- [02-order-cancellation-with-subscription-management.md](features/02-order-cancellation-with-subscription-management.md) - ⚪ **Pending** - Comprehensive order cancellation with subscription management
 
 ## Maintenance Prompts
 *No maintenance prompts yet - add dependency updates, refactoring tasks here*
