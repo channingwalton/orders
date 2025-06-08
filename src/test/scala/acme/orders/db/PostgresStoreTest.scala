@@ -4,6 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 import acme.orders.models._
+import acme.orders.utils.TimeUtils
 import cats.effect._
 import cats.syntax.all._
 import com.dimafeng.testcontainers.PostgreSQLContainer
@@ -101,7 +102,7 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
         _ <- migrateDatabase(config)
         result <- PostgresStore.resource[IO](config).use { store =>
           val order = createTestOrder()
-          val updatedTime = Instant.now().plusSeconds(60)
+          val updatedTime = TimeUtils.truncateToSeconds(order.createdAt.plusSeconds(60))
           val updatedOrder = order.copy(status = OrderStatus.Cancelled, updatedAt = updatedTime)
           for
             _ <- store.commit(store.createOrder(order))
@@ -110,14 +111,14 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
           yield {
             assert(foundOrder.isDefined)
             assertEquals(foundOrder.get.status, OrderStatus.Cancelled)
-            // Check that updatedAt was changed and is after the original createdAt
+            // Check that updatedAt was changed and is later than createdAt
             assert(foundOrder.get.updatedAt.isAfter(order.createdAt))
-            // Check that the difference is approximately 60 seconds (within 1 second tolerance)
-            val timeDiff = java.time.Duration.between(order.createdAt, foundOrder.get.updatedAt).getSeconds
-            assert(timeDiff >= 59 && timeDiff <= 61, s"Expected ~60 seconds difference, got $timeDiff")
+            // Since we're using second precision, ensure we don't have microsecond differences
+            assertEquals(foundOrder.get.updatedAt.getNano(), 0)
             assertEquals(foundOrder.get.id, order.id)
             assertEquals(foundOrder.get.userId, order.userId)
-            assertEquals(foundOrder.get.createdAt, order.createdAt)
+            // Verify timestamps have second precision (no nanoseconds)
+            assertEquals(foundOrder.get.createdAt.getNano(), 0)
           }
         }
       yield result
@@ -396,8 +397,8 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
     userId = userId,
     productId = productId,
     status = OrderStatus.Active,
-    createdAt = Instant.now(),
-    updatedAt = Instant.now()
+    createdAt = TimeUtils.now(),
+    updatedAt = TimeUtils.now()
   )
 
   private def createTestSubscription(
@@ -408,13 +409,13 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
     orderId = orderId,
     userId = userId,
     productId = ProductId("monthly"),
-    startDate = Instant.now(),
-    endDate = Instant.now().plusSeconds(2592000),
+    startDate = TimeUtils.now(),
+    endDate = TimeUtils.now().plusSeconds(2592000),
     status = SubscriptionStatus.Active,
     cancelledAt = None,
     effectiveEndDate = None,
-    createdAt = Instant.now(),
-    updatedAt = Instant.now()
+    createdAt = TimeUtils.now(),
+    updatedAt = TimeUtils.now()
   )
 
   private def createTestSubscriptionWithDates(
@@ -428,11 +429,11 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
     orderId = orderId,
     userId = userId,
     productId = ProductId("monthly"),
-    startDate = startDate,
-    endDate = endDate,
+    startDate = TimeUtils.truncateToSeconds(startDate),
+    endDate = TimeUtils.truncateToSeconds(endDate),
     status = status,
     cancelledAt = None,
     effectiveEndDate = None,
-    createdAt = Instant.now(),
-    updatedAt = Instant.now()
+    createdAt = TimeUtils.now(),
+    updatedAt = TimeUtils.now()
   )

@@ -3,6 +3,7 @@ package acme.orders
 import scala.collection.mutable
 
 import acme.orders.models._
+import acme.orders.utils.TimeUtils
 import cats.effect._
 import munit.CatsEffectSuite
 
@@ -210,7 +211,8 @@ class OrderServiceTest extends CatsEffectSuite:
 
     def findSubscriptionsByUser(userId: UserId): IO[List[Subscription]] = IO.pure(subscriptions.values.filter(_.userId == userId).toList)
 
-    def findActiveSubscriptionsByUser(userId: UserId): IO[List[Subscription]] = Clock[IO].realTimeInstant.map { now =>
+    def findActiveSubscriptionsByUser(userId: UserId): IO[List[Subscription]] = Clock[IO].realTimeInstant.map { rawNow =>
+      val now = TimeUtils.truncateToSeconds(rawNow)
       subscriptions.values.filter { sub =>
         sub.userId == userId &&
         sub.status == SubscriptionStatus.Active &&

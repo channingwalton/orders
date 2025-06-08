@@ -1,10 +1,10 @@
 package acme.orders.routes
 
-import java.time.Instant
 import java.util.UUID
 
 import acme.orders.OrderService
 import acme.orders.models._
+import acme.orders.utils.TimeUtils
 import cats.effect._
 import io.circe.syntax._
 import munit.CatsEffectSuite
@@ -114,8 +114,8 @@ class OrderRoutesTest extends CatsEffectSuite:
         UserId(request.userId),
         acme.orders.models.ProductId(request.productId),
         OrderStatus.Active,
-        Instant.now(),
-        Instant.now()
+        TimeUtils.now(),
+        TimeUtils.now()
       )
     )
 
@@ -126,8 +126,8 @@ class OrderRoutesTest extends CatsEffectSuite:
           UserId("user1"),
           acme.orders.models.ProductId("monthly"),
           OrderStatus.Active,
-          Instant.now(),
-          Instant.now()
+          TimeUtils.now(),
+          TimeUtils.now()
         )
       )
     )
@@ -139,8 +139,8 @@ class OrderRoutesTest extends CatsEffectSuite:
           userId,
           acme.orders.models.ProductId("monthly"),
           OrderStatus.Active,
-          Instant.now(),
-          Instant.now()
+          TimeUtils.now(),
+          TimeUtils.now()
         )
       )
     )
@@ -152,13 +152,13 @@ class OrderRoutesTest extends CatsEffectSuite:
           OrderId(UUID.randomUUID()),
           userId,
           acme.orders.models.ProductId("monthly"),
-          Instant.now(),
-          Instant.now().plusSeconds(2592000),
+          TimeUtils.now(),
+          TimeUtils.now().plusSeconds(2592000),
           SubscriptionStatus.Active,
           None,
           None,
-          Instant.now(),
-          Instant.now()
+          TimeUtils.now(),
+          TimeUtils.now()
         )
       )
     )
@@ -173,13 +173,13 @@ class OrderRoutesTest extends CatsEffectSuite:
             OrderId(UUID.randomUUID()),
             userId,
             acme.orders.models.ProductId("monthly"),
-            Instant.now(),
-            Instant.now().plusSeconds(2592000),
+            TimeUtils.now(),
+            TimeUtils.now().plusSeconds(2592000),
             SubscriptionStatus.Active,
             None,
             None,
-            Instant.now(),
-            Instant.now()
+            TimeUtils.now(),
+            TimeUtils.now()
           )
         ),
         subscriptionCount = 1
@@ -198,11 +198,11 @@ class OrderRoutesTest extends CatsEffectSuite:
           CancellationReason.UserRequest,
           CancellationType.Immediate,
           Some("User requested cancellation"),
-          Instant.now(),
+          TimeUtils.now(),
           CancelledBy.User,
-          Instant.now(),
-          Instant.now(),
-          Instant.now()
+          TimeUtils.now(),
+          TimeUtils.now(),
+          TimeUtils.now()
         )
       )
     )

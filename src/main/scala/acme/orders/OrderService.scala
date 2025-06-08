@@ -5,6 +5,7 @@ import java.util.UUID
 
 import acme.orders.db.Store
 import acme.orders.models._
+import acme.orders.utils.TimeUtils
 import cats.MonadThrow
 import cats.effect._
 import cats.syntax.all._
@@ -26,7 +27,8 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
 
   def createOrder(request: CreateOrderRequest): F[Order] =
     for
-      now <- clock.realTimeInstant
+      rawNow <- clock.realTimeInstant
+      now = TimeUtils.truncateToSeconds(rawNow)
       orderId = OrderId(UUID.randomUUID())
       userId = UserId(request.userId)
       productId = ProductId(request.productId)
@@ -61,7 +63,8 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
 
   def cancelOrder(orderId: OrderId, request: CancelOrderRequest): F[Unit] =
     for
-      now <- clock.realTimeInstant
+      rawNow <- clock.realTimeInstant
+      now = TimeUtils.truncateToSeconds(rawNow)
       _ <- store.commit(
         for
           orderOpt <- store.findOrder(orderId)
@@ -109,9 +112,10 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
 
   private def createSubscriptionForOrder(order: Order, now: Instant): F[Subscription] = Product.values.find(_.id == order.productId) match
     case Some(product) =>
-      val endDate = product.duration match
+      val rawEndDate = product.duration match
         case ProductDuration.Month => now.atZone(ZoneOffset.UTC).plusMonths(1).toInstant
         case ProductDuration.Year  => now.atZone(ZoneOffset.UTC).plusYears(1).toInstant
+      val endDate = TimeUtils.truncateToSeconds(rawEndDate)
 
       val subscription = Subscription(
         id = SubscriptionId(UUID.randomUUID()),
