@@ -1,15 +1,14 @@
 package acme.orders.db
 
-import cats.effect.*
-import munit.CatsEffectSuite
-import com.dimafeng.testcontainers.munit.TestContainerForEach
-import com.dimafeng.testcontainers.PostgreSQLContainer
-import org.testcontainers.utility.DockerImageName
-import doobie.*
-import doobie.implicits.*
-import acme.orders.models.*
 import java.time.Instant
 import java.util.UUID
+
+import acme.orders.models._
+import cats.effect._
+import com.dimafeng.testcontainers.PostgreSQLContainer
+import com.dimafeng.testcontainers.munit.TestContainerForEach
+import munit.CatsEffectSuite
+import org.testcontainers.utility.DockerImageName
 
 class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
 

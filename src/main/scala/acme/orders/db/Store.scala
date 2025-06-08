@@ -1,10 +1,6 @@
 package acme.orders.db
 
-import cats.data.{NonEmptyList, OptionT}
-import cats.effect.kernel.MonadCancelThrow
-import cats.syntax.all.*
-import cats.{Applicative, FlatMap, ~>}
-import acme.orders.models.*
+import acme.orders.models._
 
 trait Store[F[_], G[_]]:
   def createOrder(order: Order): G[OrderId]

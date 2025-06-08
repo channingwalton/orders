@@ -1,15 +1,13 @@
 package acme.orders
 
-import cats.effect.*
-import cats.syntax.all.*
-import org.http4s.ember.server.EmberServerBuilder
-import org.http4s.server.middleware.{Logger, CORS}
-import org.http4s.HttpRoutes
-import com.comcast.ip4s.*
-import org.typelevel.log4cats.slf4j.Slf4jLogger
 import acme.orders.config.Config
-import acme.orders.db.{PostgresStore, DatabaseMigration}
+import acme.orders.db.{DatabaseMigration, PostgresStore}
 import acme.orders.routes.OrderRoutes
+import cats.effect._
+import com.comcast.ip4s._
+import org.http4s.ember.server.EmberServerBuilder
+import org.http4s.server.middleware.{CORS, Logger}
+import org.typelevel.log4cats.slf4j.Slf4jLogger
 
 object Main extends IOApp:
 

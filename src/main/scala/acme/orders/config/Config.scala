@@ -1,9 +1,9 @@
 package acme.orders.config
 
-import cats.effect.*
-import cats.syntax.all.*
-import ciris.*
 import acme.orders.db.PostgresStore
+import cats.effect._
+import cats.syntax.all._
+import ciris._
 
 case class Config(
   server: ServerConfig,

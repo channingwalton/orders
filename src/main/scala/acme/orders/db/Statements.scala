@@ -1,12 +1,13 @@
 package acme.orders.db
 
-import doobie.*
-import doobie.implicits.*
-import doobie.postgres.*
-import doobie.postgres.implicits.*
-import acme.orders.models.*
 import java.time.Instant
 import java.util.UUID
+
+import acme.orders.models._
+import doobie._
+import doobie.implicits._
+import doobie.postgres._
+import doobie.postgres.implicits._
 
 object Statements:
 

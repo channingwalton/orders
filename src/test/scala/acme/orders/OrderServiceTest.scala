@@ -1,12 +1,10 @@
 package acme.orders
 
-import cats.effect.*
-import cats.syntax.all.*
-import munit.CatsEffectSuite
-import acme.orders.models.*
-import java.time.Instant
-import java.util.UUID
 import scala.collection.mutable
+
+import acme.orders.models._
+import cats.effect._
+import munit.CatsEffectSuite
 
 class OrderServiceTest extends CatsEffectSuite:
 

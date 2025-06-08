@@ -1,16 +1,14 @@
 package acme.orders.routes
 
-import cats.effect.*
-import cats.syntax.all.*
-import org.http4s.*
+import acme.orders.OrderService
+import acme.orders.models._
+import cats.effect._
+import cats.syntax.all._
+import io.circe.syntax._
+import org.http4s._
+import org.http4s.circe.CirceEntityDecoder._
+import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
-import org.http4s.circe.*
-import org.http4s.circe.CirceEntityDecoder.*
-import org.http4s.circe.CirceEntityEncoder.*
-import io.circe.syntax.*
-import acme.orders.{OrderService}
-import acme.orders.models.*
-import java.util.UUID
 
 object OrderRoutes:
 

@@ -1,16 +1,13 @@
 package acme.orders.db
 
-import cats.effect.*
+import acme.orders.models._
+import cats.effect._
 import cats.effect.kernel.MonadCancelThrow
-import cats.effect.std.Console
-import cats.syntax.all.*
-import cats.{~>, MonadThrow}
+import cats.syntax.all._
 import com.zaxxer.hikari.HikariConfig
-import doobie.*
-import doobie.hikari.*
-import doobie.implicits.*
-import acme.orders.models.*
-import java.util.UUID
+import doobie._
+import doobie.hikari._
+import doobie.implicits._
 
 class PostgresStore[F[_]: MonadCancelThrow](xa: Transactor[F]) extends Store[F, ConnectionIO]:
 

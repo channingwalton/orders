@@ -1,7 +1,8 @@
 package acme.orders.db
 
+import scala.util.{Failure, Success, Try}
+
 import org.flywaydb.core.Flyway
-import scala.util.{Try, Success, Failure}
 
 object DatabaseMigration:
 

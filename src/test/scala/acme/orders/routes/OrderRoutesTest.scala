@@ -1,19 +1,16 @@
 package acme.orders.routes
 
-import cats.effect.*
-import cats.syntax.all.*
-import munit.CatsEffectSuite
-import org.http4s.{Method, Request, Status, Uri}
-import org.http4s.dsl.io.*
-import org.http4s.implicits.*
-import org.http4s.circe.*
-import org.http4s.circe.CirceEntityDecoder.*
-import org.http4s.circe.CirceEntityEncoder.*
-import io.circe.syntax.*
-import acme.orders.{OrderService}
-import acme.orders.models.{*, given}
 import java.time.Instant
 import java.util.UUID
+
+import acme.orders.OrderService
+import acme.orders.models._
+import cats.effect._
+import io.circe.syntax._
+import munit.CatsEffectSuite
+import org.http4s.circe._
+import org.http4s.implicits._
+import org.http4s.{Method, Request, Status, Uri}
 
 class OrderRoutesTest extends CatsEffectSuite:
 

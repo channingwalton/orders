@@ -1,12 +1,13 @@
 package acme.orders
 
-import cats.effect.*
-import cats.syntax.all.*
-import cats.{MonadThrow, MonadError}
-import acme.orders.db.Store
-import acme.orders.models.*
 import java.time.{Instant, ZoneOffset}
 import java.util.UUID
+
+import acme.orders.db.Store
+import acme.orders.models._
+import cats.MonadThrow
+import cats.effect._
+import cats.syntax.all._
 
 trait OrderService[F[_]]:
   def createOrder(request: CreateOrderRequest): F[Order]

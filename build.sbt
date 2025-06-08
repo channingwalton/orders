@@ -1,5 +1,7 @@
 ThisBuild / organization := "acme"
 ThisBuild / scalaVersion := "3.3.6"
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
 
 lazy val root = (project in file(".")).settings(
   name := "orders",
@@ -33,7 +35,8 @@ lazy val root = (project in file(".")).settings(
     "-feature",
     "-unchecked",
     "-Ykind-projector:underscores",
-    "-Xfatal-warnings"
+    "-Xfatal-warnings",
+    "-Wunused:imports"
   ),
   Compile / mainClass := Some("acme.orders.Main"),
 )

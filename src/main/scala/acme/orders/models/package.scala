@@ -1,9 +1,10 @@
 package acme.orders.models
 
-import io.circe.{Decoder, Encoder}
-import io.circe.generic.semiauto.*
 import java.time.Instant
 import java.util.UUID
+
+import io.circe.generic.semiauto._
+import io.circe.{Decoder, Encoder}
 
 case class OrderId(value: UUID) extends AnyVal
 case class SubscriptionId(value: UUID) extends AnyVal
