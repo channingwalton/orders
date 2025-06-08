@@ -47,9 +47,17 @@ object OrderRoutes:
           response <- Ok(status.asJson)
         yield response
 
-      case PUT -> Root / "orders" / UUIDVar(orderId) / "cancel" =>
+      case req @ PUT -> Root / "orders" / UUIDVar(orderId) / "cancel" =>
         for
-          _ <- orderService.cancelOrder(OrderId(orderId))
+          cancelRequest <- req.as[CancelOrderRequest].recoverWith { case _: Exception =>
+            CancelOrderRequest(None, None, None).pure[F]
+          }
+          _ <- orderService.cancelOrder(OrderId(orderId), cancelRequest)
           response <- NoContent()
         yield response
+
+      case GET -> Root / "orders" / UUIDVar(orderId) / "cancellation" => orderService.getOrderCancellation(OrderId(orderId)).flatMap {
+          case Some(cancellation) => Ok(cancellation.asJson)
+          case None               => NotFound()
+        }
     }

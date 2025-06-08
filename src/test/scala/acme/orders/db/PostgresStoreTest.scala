@@ -411,6 +411,8 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
     startDate = Instant.now(),
     endDate = Instant.now().plusSeconds(2592000),
     status = SubscriptionStatus.Active,
+    cancelledAt = None,
+    effectiveEndDate = None,
     createdAt = Instant.now(),
     updatedAt = Instant.now()
   )
@@ -429,6 +431,8 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
     startDate = startDate,
     endDate = endDate,
     status = status,
+    cancelledAt = None,
+    effectiveEndDate = None,
     createdAt = Instant.now(),
     updatedAt = Instant.now()
   )

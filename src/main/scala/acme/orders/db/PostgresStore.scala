@@ -25,6 +25,15 @@ class PostgresStore[F[_]: MonadCancelThrow](xa: Transactor[F]) extends Store[F, 
 
   def findActiveSubscriptionsByUser(userId: UserId): ConnectionIO[List[Subscription]] = Statements.selectActiveSubscriptionsByUser(userId).to[List]
 
+  def findSubscriptionsByOrder(orderId: OrderId): ConnectionIO[List[Subscription]] = Statements.selectSubscriptionsByOrder(orderId).to[List]
+
+  def updateSubscription(subscription: Subscription): ConnectionIO[Unit] = Statements.updateSubscription(subscription).run.void
+
+  def createOrderCancellation(cancellation: OrderCancellation): ConnectionIO[OrderCancellationId] =
+    Statements.insertOrderCancellation(cancellation).run.as(cancellation.id)
+
+  def findOrderCancellation(orderId: OrderId): ConnectionIO[Option[OrderCancellation]] = Statements.selectOrderCancellation(orderId).option
+
   def commit[A](ca: ConnectionIO[A]): F[A] = ca.transact(xa)
 
 object PostgresStore:

@@ -9,6 +9,9 @@ object ServiceError:
   case class InvalidProduct(productId: ProductId) extends ServiceError:
     override def getMessage: String = s"Invalid product: ${productId.value}"
 
+  case class OrderAlreadyCancelled(orderId: OrderId) extends ServiceError:
+    override def getMessage: String = s"Order already cancelled: ${orderId.value}"
+
   case class DatabaseError(cause: Throwable) extends ServiceError:
     override def getMessage: String = s"Database error: ${cause.getMessage}"
     override def getCause: Throwable = cause

@@ -70,6 +70,43 @@ class OrderRoutesTest extends CatsEffectSuite:
     }
   }
 
+  test("PUT /orders/{id}/cancel should cancel order") {
+    for
+      service <- createMockOrderService()
+      routes = OrderRoutes.routes[IO](service)
+      orderId = UUID.randomUUID()
+      request = Request[IO](Method.PUT, Uri.unsafeFromString(s"/orders/$orderId/cancel"))
+      response <- routes.orNotFound.run(request)
+    yield {
+      assertEquals(response.status, Status.NoContent)
+    }
+  }
+
+  test("PUT /orders/{id}/cancel with request body should cancel order with details") {
+    for
+      service <- createMockOrderService()
+      routes = OrderRoutes.routes[IO](service)
+      orderId = UUID.randomUUID()
+      cancelRequest = CancelOrderRequest(Some(CancellationReason.UserRequest), Some(CancellationType.Immediate), Some("User requested"))
+      request = Request[IO](Method.PUT, Uri.unsafeFromString(s"/orders/$orderId/cancel")).withEntity(cancelRequest.asJson)
+      response <- routes.orNotFound.run(request)
+    yield {
+      assertEquals(response.status, Status.NoContent)
+    }
+  }
+
+  test("GET /orders/{id}/cancellation should return cancellation details") {
+    for
+      service <- createMockOrderService()
+      routes = OrderRoutes.routes[IO](service)
+      orderId = UUID.randomUUID()
+      request = Request[IO](Method.GET, Uri.unsafeFromString(s"/orders/$orderId/cancellation"))
+      response <- routes.orNotFound.run(request)
+    yield {
+      assertEquals(response.status, Status.Ok)
+    }
+  }
+
   private def createMockOrderService(): IO[OrderService[IO]] = IO.pure(new OrderService[IO] {
     def createOrder(request: CreateOrderRequest): IO[Order] = IO.pure(
       Order(
@@ -118,6 +155,8 @@ class OrderRoutesTest extends CatsEffectSuite:
           Instant.now(),
           Instant.now().plusSeconds(2592000),
           SubscriptionStatus.Active,
+          None,
+          None,
           Instant.now(),
           Instant.now()
         )
@@ -137,6 +176,8 @@ class OrderRoutesTest extends CatsEffectSuite:
             Instant.now(),
             Instant.now().plusSeconds(2592000),
             SubscriptionStatus.Active,
+            None,
+            None,
             Instant.now(),
             Instant.now()
           )
@@ -146,4 +187,23 @@ class OrderRoutesTest extends CatsEffectSuite:
     )
 
     def cancelOrder(orderId: OrderId): IO[Unit] = IO.unit
+
+    def cancelOrder(orderId: OrderId, request: CancelOrderRequest): IO[Unit] = IO.unit
+
+    def getOrderCancellation(orderId: OrderId): IO[Option[OrderCancellation]] = IO.pure(
+      Some(
+        OrderCancellation(
+          OrderCancellationId(UUID.randomUUID()),
+          orderId,
+          CancellationReason.UserRequest,
+          CancellationType.Immediate,
+          Some("User requested cancellation"),
+          Instant.now(),
+          CancelledBy.User,
+          Instant.now(),
+          Instant.now(),
+          Instant.now()
+        )
+      )
+    )
   })

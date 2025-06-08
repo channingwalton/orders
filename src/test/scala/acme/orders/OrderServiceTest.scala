@@ -97,11 +97,98 @@ class OrderServiceTest extends CatsEffectSuite:
     }
   }
 
+  test("cancelOrder with request should cancel order and subscriptions") {
+    for
+      service <- createOrderService()
+      request = CreateOrderRequest("user1", "monthly")
+      order <- service.createOrder(request)
+      cancelRequest = CancelOrderRequest(Some(CancellationReason.UserRequest), Some(CancellationType.Immediate), Some("User requested cancellation"))
+      _ <- service.cancelOrder(order.id, cancelRequest)
+      updatedOrder <- service.getOrder(order.id)
+      subscriptions <- service.getUserSubscriptions(UserId("user1"))
+      cancellation <- service.getOrderCancellation(order.id)
+    yield {
+      assertEquals(updatedOrder.get.status, OrderStatus.Cancelled)
+      assertEquals(subscriptions.head.status, SubscriptionStatus.Cancelled)
+      assert(subscriptions.head.cancelledAt.isDefined)
+      assert(cancellation.isDefined)
+      assertEquals(cancellation.get.reason, CancellationReason.UserRequest)
+      assertEquals(cancellation.get.cancellationType, CancellationType.Immediate)
+      assertEquals(cancellation.get.notes, Some("User requested cancellation"))
+    }
+  }
+
+  test("cancelOrder should handle end of period cancellation") {
+    for
+      service <- createOrderService()
+      request = CreateOrderRequest("user1", "monthly")
+      order <- service.createOrder(request)
+      cancelRequest = CancelOrderRequest(Some(CancellationReason.UserRequest), Some(CancellationType.EndOfPeriod), None)
+      _ <- service.cancelOrder(order.id, cancelRequest)
+      subscriptions <- service.getUserSubscriptions(UserId("user1"))
+      cancellation <- service.getOrderCancellation(order.id)
+    yield {
+      assertEquals(subscriptions.head.status, SubscriptionStatus.Cancelled)
+      assert(subscriptions.head.effectiveEndDate.isDefined)
+      assertEquals(cancellation.get.cancellationType, CancellationType.EndOfPeriod)
+    }
+  }
+
+  test("cancelOrder should fail for already cancelled order") {
+    for
+      service <- createOrderService()
+      request = CreateOrderRequest("user1", "monthly")
+      order <- service.createOrder(request)
+      _ <- service.cancelOrder(order.id)
+      result <- service.cancelOrder(order.id).attempt
+    yield {
+      assert(result.isLeft)
+      assert(result.left.exists(_.isInstanceOf[ServiceError.OrderAlreadyCancelled]))
+    }
+  }
+
+  test("cancelOrder should fail for non-existent order") {
+    for
+      service <- createOrderService()
+      nonExistentOrderId = OrderId(java.util.UUID.randomUUID())
+      result <- service.cancelOrder(nonExistentOrderId).attempt
+    yield {
+      assert(result.isLeft)
+      assert(result.left.exists(_.isInstanceOf[ServiceError.OrderNotFound]))
+    }
+  }
+
+  test("getUserSubscriptionStatus should not include cancelled subscriptions") {
+    for
+      service <- createOrderService()
+      request = CreateOrderRequest("user1", "monthly")
+      order <- service.createOrder(request)
+      _ <- service.cancelOrder(order.id)
+      status <- service.getUserSubscriptionStatus(UserId("user1"))
+    yield {
+      assertEquals(status.isSubscribed, false)
+      assertEquals(status.subscriptionCount, 0)
+      assertEquals(status.activeSubscriptions.length, 0)
+    }
+  }
+
+  test("getOrderCancellation should return None for non-cancelled order") {
+    for
+      service <- createOrderService()
+      request = CreateOrderRequest("user1", "monthly")
+      order <- service.createOrder(request)
+      cancellation <- service.getOrderCancellation(order.id)
+    yield {
+      assert(cancellation.isEmpty)
+    }
+  }
+
   private def createOrderService(): IO[OrderService[IO]] = IO.pure(OrderService[IO, IO](new MockStore(), Clock[IO]))
 
   private class MockStore extends acme.orders.db.Store[IO, IO]:
     private val orders = mutable.Map[OrderId, Order]()
     private val subscriptions = mutable.Map[SubscriptionId, Subscription]()
+    private val cancellations = mutable.Map[OrderId, OrderCancellation]()
 
     def createOrder(order: Order): IO[OrderId] = IO {
       orders += order.id -> order
@@ -131,6 +218,19 @@ class OrderServiceTest extends CatsEffectSuite:
         sub.endDate.isAfter(now)
       }.toList
     }
+
+    def findSubscriptionsByOrder(orderId: OrderId): IO[List[Subscription]] = IO.pure(subscriptions.values.filter(_.orderId == orderId).toList)
+
+    def updateSubscription(subscription: Subscription): IO[Unit] = IO {
+      subscriptions += subscription.id -> subscription
+    }
+
+    def createOrderCancellation(cancellation: OrderCancellation): IO[OrderCancellationId] = IO {
+      cancellations += cancellation.orderId -> cancellation
+      cancellation.id
+    }
+
+    def findOrderCancellation(orderId: OrderId): IO[Option[OrderCancellation]] = IO.pure(cancellations.get(orderId))
 
     def commit[A](fa: IO[A]): IO[A] = fa
 

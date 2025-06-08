@@ -16,6 +16,8 @@ trait OrderService[F[_]]:
   def getUserSubscriptions(userId: UserId): F[List[Subscription]]
   def getUserSubscriptionStatus(userId: UserId): F[UserSubscriptionStatus]
   def cancelOrder(orderId: OrderId): F[Unit]
+  def cancelOrder(orderId: OrderId, request: CancelOrderRequest): F[Unit]
+  def getOrderCancellation(orderId: OrderId): F[Option[OrderCancellation]]
 
 class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
   store: Store[F, G],
@@ -55,18 +57,51 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
       )
   }
 
-  def cancelOrder(orderId: OrderId): F[Unit] =
+  def cancelOrder(orderId: OrderId): F[Unit] = cancelOrder(orderId, CancelOrderRequest(None, None, None))
+
+  def cancelOrder(orderId: OrderId, request: CancelOrderRequest): F[Unit] =
     for
       now <- clock.realTimeInstant
       _ <- store.commit(
         for
           orderOpt <- store.findOrder(orderId)
           order <- orderOpt.liftTo[G](ServiceError.OrderNotFound(orderId))
+          _ <- if order.status == OrderStatus.Cancelled then ServiceError.OrderAlreadyCancelled(orderId).raiseError[G, Unit] else ().pure[G]
+          subscriptions <- store.findSubscriptionsByOrder(orderId)
+          reason = request.reason.getOrElse(CancellationReason.UserRequest)
+          cancellationType = request.cancellationType.getOrElse(CancellationType.Immediate)
+          effectiveDate = cancellationType match
+            case CancellationType.Immediate   => now
+            case CancellationType.EndOfPeriod => subscriptions.headOption.map(_.endDate).getOrElse(now)
+          cancellation = OrderCancellation(
+            id = OrderCancellationId(UUID.randomUUID()),
+            orderId = orderId,
+            reason = reason,
+            cancellationType = cancellationType,
+            notes = request.notes,
+            cancelledAt = now,
+            cancelledBy = CancelledBy.User,
+            effectiveDate = effectiveDate,
+            createdAt = now,
+            updatedAt = now
+          )
           cancelledOrder = order.copy(status = OrderStatus.Cancelled, updatedAt = now)
+          cancelledSubscriptions = subscriptions.map { subscription =>
+            subscription.copy(
+              status = SubscriptionStatus.Cancelled,
+              cancelledAt = Some(now),
+              effectiveEndDate = Some(effectiveDate),
+              updatedAt = now
+            )
+          }
           _ <- store.updateOrder(cancelledOrder)
+          _ <- store.createOrderCancellation(cancellation)
+          _ <- cancelledSubscriptions.traverse(store.updateSubscription)
         yield ()
       )
     yield ()
+
+  def getOrderCancellation(orderId: OrderId): F[Option[OrderCancellation]] = store.commit(store.findOrderCancellation(orderId))
 
   private def validateProduct(productId: ProductId): F[Unit] = Product.values.find(_.id == productId) match
     case Some(_) => ().pure[F]
@@ -86,6 +121,8 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
         startDate = now,
         endDate = endDate,
         status = SubscriptionStatus.Active,
+        cancelledAt = None,
+        effectiveEndDate = None,
         createdAt = now,
         updatedAt = now
       )
