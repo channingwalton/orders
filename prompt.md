@@ -94,3 +94,12 @@ PostgresStore.resource[IO](config).use { store =>
 ### 2. Transactions
 
 OrderService should wrap each operation in a single transaction, not commit during the operation. 
+
+### 3. Running locally
+
+Create a shell script to start postgres locally in docker and then run the main app.
+Add instructions for this at the bottom of the README, including sample curl commands for interacting with the local services.
+
+Write a script to postgres running too.
+
+Test that it works and upon success commit and push.

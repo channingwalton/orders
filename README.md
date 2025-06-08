@@ -1,6 +1,7 @@
 # Order Management System
 
 [![CI](https://github.com/channingwalton/orders/actions/workflows/ci.yml/badge.svg)](https://github.com/channingwalton/orders/actions/workflows/ci.yml)
+
 This project has been written entirely by Claude Code, using `prompt.md`. I haven't included the transcript, I should have kept it, sorry, but it was mostly telling claude to read the prompt file and make sure tests pass before committing and pushing to GH.
 
 ----
@@ -209,6 +210,84 @@ This runs:
 - `clean`: Clean build artifacts
 - `compile`: Compile the code
 - `test`: Run all tests
+
+## Running Locally
+
+For local development and testing, we provide shell scripts to simplify the setup:
+
+### Quick Start
+
+1. **Start PostgreSQL in Docker:**
+   ```bash
+   ./start-postgres.sh
+   ```
+   This will start a PostgreSQL container with the correct database, user, and password configured.
+
+2. **Run the application:**
+   ```bash
+   ./run-app.sh
+   ```
+   This will start the orders service on `http://localhost:8080`.
+
+3. **Stop PostgreSQL when done:**
+   ```bash
+   ./stop-postgres.sh
+   ```
+
+### Sample API Usage
+
+Once the application is running, you can interact with it using curl:
+
+#### Create an Order
+```bash
+curl -X POST http://localhost:8080/orders \
+  -H "Content-Type: application/json" \
+  -d '{"userId": "user123", "productId": "monthly"}'
+```
+
+#### Get an Order
+```bash
+# Replace {orderId} with the ID from the create response
+curl http://localhost:8080/orders/{orderId}
+```
+
+#### List User Orders
+```bash
+curl http://localhost:8080/users/user123/orders
+```
+
+#### List User Subscriptions
+```bash
+curl http://localhost:8080/users/user123/subscriptions
+```
+
+#### Cancel an Order
+```bash
+# Replace {orderId} with an actual order ID
+curl -X PUT http://localhost:8080/orders/{orderId}/cancel
+```
+
+#### Example Complete Workflow
+```bash
+# 1. Create a monthly order
+ORDER_RESPONSE=$(curl -s -X POST http://localhost:8080/orders \
+  -H "Content-Type: application/json" \
+  -d '{"userId": "user123", "productId": "monthly"}')
+
+echo "Created order: $ORDER_RESPONSE"
+
+# 2. Extract order ID (requires jq)
+ORDER_ID=$(echo $ORDER_RESPONSE | jq -r '.id')
+
+# 3. Get the order
+curl http://localhost:8080/orders/$ORDER_ID
+
+# 4. Check user's subscriptions
+curl http://localhost:8080/users/user123/subscriptions
+
+# 5. Cancel the order
+curl -X PUT http://localhost:8080/orders/$ORDER_ID/cancel
+```
 
 ## Contributing
 
