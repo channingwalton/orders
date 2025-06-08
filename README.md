@@ -165,29 +165,6 @@ The application can be configured using environment variables:
 
 ## Development
 
-### Project Structure
-
-```
-src/
-├── main/
-│   ├── resources/
-│   │   ├── application.conf
-│   │   ├── logback.xml
-│   │   └── db/migration/
-│   └── scala/acme/orders/
-│       ├── Main.scala
-│       ├── OrderService.scala
-│       ├── config/
-│       ├── db/
-│       ├── models/
-│       └── routes/
-└── test/
-    └── scala/acme/orders/
-        ├── OrderServiceTest.scala
-        ├── db/PostgresStoreTest.scala
-        └── routes/OrderRoutesTest.scala
-```
-
 ### Architecture
 
 The application follows a layered architecture:

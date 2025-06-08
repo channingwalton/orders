@@ -103,3 +103,13 @@ Add instructions for this at the bottom of the README, including sample curl com
 Write a script to postgres running too.
 
 Test that it works and upon success commit and push.
+
+### 4. README
+
+The README says:
+```
+The project includes a CI alias for running all checks:
+```
+```
+```
+But that is just for CI, developers should use `sbt commitCheck`. Please correct the readme.
