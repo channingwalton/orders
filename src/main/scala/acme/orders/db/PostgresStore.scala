@@ -23,6 +23,8 @@ class PostgresStore[F[_]: MonadCancelThrow](xa: Transactor[F]) extends Store[F, 
 
   def findSubscriptionsByUser(userId: UserId): ConnectionIO[List[Subscription]] = Statements.selectSubscriptionsByUser(userId).to[List]
 
+  def findActiveSubscriptionsByUser(userId: UserId): ConnectionIO[List[Subscription]] = Statements.selectActiveSubscriptionsByUser(userId).to[List]
+
   def commit[A](ca: ConnectionIO[A]): F[A] = ca.transact(xa)
 
 object PostgresStore:

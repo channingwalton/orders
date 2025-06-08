@@ -41,6 +41,12 @@ object OrderRoutes:
           response <- Ok(subscriptions.asJson)
         yield response
 
+      case GET -> Root / "users" / userId / "subscription-status" =>
+        for
+          status <- orderService.getUserSubscriptionStatus(UserId(userId))
+          response <- Ok(status.asJson)
+        yield response
+
       case PUT -> Root / "orders" / UUIDVar(orderId) / "cancel" =>
         for
           _ <- orderService.cancelOrder(OrderId(orderId))

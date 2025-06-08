@@ -14,6 +14,7 @@ trait OrderService[F[_]]:
   def getOrder(orderId: OrderId): F[Option[Order]]
   def getUserOrders(userId: UserId): F[List[Order]]
   def getUserSubscriptions(userId: UserId): F[List[Subscription]]
+  def getUserSubscriptionStatus(userId: UserId): F[UserSubscriptionStatus]
   def cancelOrder(orderId: OrderId): F[Unit]
 
 class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
@@ -43,6 +44,16 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
   def getUserOrders(userId: UserId): F[List[Order]] = store.commit(store.findOrdersByUser(userId))
 
   def getUserSubscriptions(userId: UserId): F[List[Subscription]] = store.commit(store.findSubscriptionsByUser(userId))
+
+  def getUserSubscriptionStatus(userId: UserId): F[UserSubscriptionStatus] = store.commit(store.findActiveSubscriptionsByUser(userId)).map {
+    activeSubscriptions =>
+      UserSubscriptionStatus(
+        userId = userId.value,
+        isSubscribed = activeSubscriptions.nonEmpty,
+        activeSubscriptions = activeSubscriptions,
+        subscriptionCount = activeSubscriptions.length
+      )
+  }
 
   def cancelOrder(orderId: OrderId): F[Unit] =
     for

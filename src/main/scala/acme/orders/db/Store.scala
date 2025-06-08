@@ -9,4 +9,5 @@ trait Store[F[_], G[_]]:
   def updateOrder(order: Order): G[Unit]
   def createSubscription(subscription: Subscription): G[SubscriptionId]
   def findSubscriptionsByUser(userId: UserId): G[List[Subscription]]
+  def findActiveSubscriptionsByUser(userId: UserId): G[List[Subscription]]
   def commit[A](ga: G[A]): F[A]

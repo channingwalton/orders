@@ -54,9 +54,19 @@ case class CreateOrderRequest(
   productId: String
 )
 
+case class UserSubscriptionStatus(
+  userId: String,
+  isSubscribed: Boolean,
+  activeSubscriptions: List[Subscription],
+  subscriptionCount: Int
+)
+
 object CreateOrderRequest:
   given Decoder[CreateOrderRequest] = deriveDecoder
   given Encoder[CreateOrderRequest] = deriveEncoder
+
+object UserSubscriptionStatus:
+  given Encoder[UserSubscriptionStatus] = deriveEncoder
 
 object Order:
   given Encoder[Order] = deriveEncoder

@@ -59,6 +59,17 @@ class OrderRoutesTest extends CatsEffectSuite:
     }
   }
 
+  test("GET /users/{userId}/subscription-status should return subscription status") {
+    for
+      service <- createMockOrderService()
+      routes = OrderRoutes.routes[IO](service)
+      request = Request[IO](Method.GET, uri"/users/user1/subscription-status")
+      response <- routes.orNotFound.run(request)
+    yield {
+      assertEquals(response.status, Status.Ok)
+    }
+  }
+
   private def createMockOrderService(): IO[OrderService[IO]] = IO.pure(new OrderService[IO] {
     def createOrder(request: CreateOrderRequest): IO[Order] = IO.pure(
       Order(
@@ -110,6 +121,27 @@ class OrderRoutesTest extends CatsEffectSuite:
           Instant.now(),
           Instant.now()
         )
+      )
+    )
+
+    def getUserSubscriptionStatus(userId: UserId): IO[UserSubscriptionStatus] = IO.pure(
+      UserSubscriptionStatus(
+        userId = userId.value,
+        isSubscribed = true,
+        activeSubscriptions = List(
+          Subscription(
+            SubscriptionId(UUID.randomUUID()),
+            OrderId(UUID.randomUUID()),
+            userId,
+            acme.orders.models.ProductId("monthly"),
+            Instant.now(),
+            Instant.now().plusSeconds(2592000),
+            SubscriptionStatus.Active,
+            Instant.now(),
+            Instant.now()
+          )
+        ),
+        subscriptionCount = 1
       )
     )
 

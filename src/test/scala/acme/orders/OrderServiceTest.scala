@@ -71,6 +71,32 @@ class OrderServiceTest extends CatsEffectSuite:
     }
   }
 
+  test("getUserSubscriptionStatus should return correct status for subscribed user") {
+    for
+      service <- createOrderService()
+      request = CreateOrderRequest("user1", "monthly")
+      _ <- service.createOrder(request)
+      status <- service.getUserSubscriptionStatus(UserId("user1"))
+    yield {
+      assertEquals(status.userId, "user1")
+      assertEquals(status.isSubscribed, true)
+      assertEquals(status.subscriptionCount, 1)
+      assertEquals(status.activeSubscriptions.length, 1)
+    }
+  }
+
+  test("getUserSubscriptionStatus should return correct status for unsubscribed user") {
+    for
+      service <- createOrderService()
+      status <- service.getUserSubscriptionStatus(UserId("user2"))
+    yield {
+      assertEquals(status.userId, "user2")
+      assertEquals(status.isSubscribed, false)
+      assertEquals(status.subscriptionCount, 0)
+      assertEquals(status.activeSubscriptions.length, 0)
+    }
+  }
+
   private def createOrderService(): IO[OrderService[IO]] = IO.pure(OrderService[IO, IO](new MockStore(), Clock[IO]))
 
   private class MockStore extends acme.orders.db.Store[IO, IO]:
@@ -96,6 +122,15 @@ class OrderServiceTest extends CatsEffectSuite:
     }
 
     def findSubscriptionsByUser(userId: UserId): IO[List[Subscription]] = IO.pure(subscriptions.values.filter(_.userId == userId).toList)
+
+    def findActiveSubscriptionsByUser(userId: UserId): IO[List[Subscription]] = Clock[IO].realTimeInstant.map { now =>
+      subscriptions.values.filter { sub =>
+        sub.userId == userId &&
+        sub.status == SubscriptionStatus.Active &&
+        !sub.startDate.isAfter(now) &&
+        sub.endDate.isAfter(now)
+      }.toList
+    }
 
     def commit[A](fa: IO[A]): IO[A] = fa
 

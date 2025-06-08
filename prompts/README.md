@@ -12,7 +12,7 @@ This directory contains all prompts and instructions for the Order Management Sy
 - [04-readme-corrections.md](reviews/04-readme-corrections.md) - 🟢 **Complete** - Development vs CI command clarification
 
 ## Feature Prompts
-*No feature prompts yet - add new features here*
+- [01-user-subscription-status.md](features/01-user-subscription-status.md) - 🟢 **Complete** - Check whether a user is currently subscribed
 
 ## Maintenance Prompts
 *No maintenance prompts yet - add dependency updates, refactoring tasks here*

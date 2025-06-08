@@ -73,3 +73,13 @@ object Statements:
       WHERE user_id = $userId
       ORDER BY created_at DESC
     """.query[Subscription]
+
+  def selectActiveSubscriptionsByUser(userId: UserId): Query0[Subscription] = sql"""
+      SELECT id, order_id, user_id, product_id, start_date, end_date, status, created_at, updated_at
+      FROM subscriptions
+      WHERE user_id = $userId 
+        AND status = 'active'
+        AND start_date <= NOW()
+        AND end_date > NOW()
+      ORDER BY created_at DESC
+    """.query[Subscription]
