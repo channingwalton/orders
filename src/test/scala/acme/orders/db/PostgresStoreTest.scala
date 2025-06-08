@@ -85,6 +85,265 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
     }
   }
 
+  test("updateOrder should update order status and timestamp") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val order = createTestOrder()
+          val updatedTime = Instant.now().plusSeconds(60)
+          val updatedOrder = order.copy(status = OrderStatus.Cancelled, updatedAt = updatedTime)
+          for
+            _ <- store.commit(store.createOrder(order))
+            _ <- store.commit(store.updateOrder(updatedOrder))
+            foundOrder <- store.commit(store.findOrder(order.id))
+          yield {
+            assert(foundOrder.isDefined)
+            assertEquals(foundOrder.get.status, OrderStatus.Cancelled)
+            assertEquals(foundOrder.get.updatedAt, updatedTime)
+            assertEquals(foundOrder.get.id, order.id)
+            assertEquals(foundOrder.get.userId, order.userId)
+            assertEquals(foundOrder.get.createdAt, order.createdAt)
+          }
+        }
+      yield result
+    }
+  }
+
+  test("findActiveSubscriptionsByUser should filter by date and status") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val userId = UserId("user1")
+          val order1 = createTestOrder(userId = userId)
+          val order2 = createTestOrder(userId = userId)
+          val order3 = createTestOrder(userId = userId)
+
+          val now = Instant.now()
+          val activeSubscription = createTestSubscriptionWithDates(
+            order1.id,
+            userId,
+            startDate = now.minusSeconds(3600),
+            endDate = now.plusSeconds(3600),
+            status = SubscriptionStatus.Active
+          )
+          val expiredSubscription = createTestSubscriptionWithDates(
+            order2.id,
+            userId,
+            startDate = now.minusSeconds(7200),
+            endDate = now.minusSeconds(3600),
+            status = SubscriptionStatus.Active
+          )
+          val cancelledSubscription = createTestSubscriptionWithDates(
+            order3.id,
+            userId,
+            startDate = now.minusSeconds(3600),
+            endDate = now.plusSeconds(3600),
+            status = SubscriptionStatus.Cancelled
+          )
+
+          for
+            _ <- store.commit(store.createOrder(order1))
+            _ <- store.commit(store.createOrder(order2))
+            _ <- store.commit(store.createOrder(order3))
+            _ <- store.commit(store.createSubscription(activeSubscription))
+            _ <- store.commit(store.createSubscription(expiredSubscription))
+            _ <- store.commit(store.createSubscription(cancelledSubscription))
+            activeSubscriptions <- store.commit(store.findActiveSubscriptionsByUser(userId))
+          yield {
+            assertEquals(activeSubscriptions.length, 1)
+            assertEquals(activeSubscriptions.head.id, activeSubscription.id)
+            assertEquals(activeSubscriptions.head.status, SubscriptionStatus.Active)
+          }
+        }
+      yield result
+    }
+  }
+
+  test("findActiveSubscriptionsByUser should return empty list for user with no active subscriptions") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val userId = UserId("user1")
+          val order = createTestOrder(userId = userId)
+
+          val now = Instant.now()
+          val expiredSubscription = createTestSubscriptionWithDates(
+            order.id,
+            userId,
+            startDate = now.minusSeconds(7200),
+            endDate = now.minusSeconds(3600),
+            status = SubscriptionStatus.Active
+          )
+
+          for
+            _ <- store.commit(store.createOrder(order))
+            _ <- store.commit(store.createSubscription(expiredSubscription))
+            activeSubscriptions <- store.commit(store.findActiveSubscriptionsByUser(userId))
+          yield {
+            assertEquals(activeSubscriptions.length, 0)
+          }
+        }
+      yield result
+    }
+  }
+
+  test("findOrder should return None for non-existent order") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val nonExistentOrderId = OrderId(UUID.randomUUID())
+          for foundOrder <- store.commit(store.findOrder(nonExistentOrderId))
+          yield {
+            assertEquals(foundOrder, None)
+          }
+        }
+      yield result
+    }
+  }
+
+  test("findOrdersByUser should return empty list for user with no orders") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val userId = UserId("nonexistent-user")
+          for orders <- store.commit(store.findOrdersByUser(userId))
+          yield {
+            assertEquals(orders, List.empty[Order])
+          }
+        }
+      yield result
+    }
+  }
+
+  test("findSubscriptionsByUser should return empty list for user with no subscriptions") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val userId = UserId("nonexistent-user")
+          for subscriptions <- store.commit(store.findSubscriptionsByUser(userId))
+          yield {
+            assertEquals(subscriptions, List.empty[Subscription])
+          }
+        }
+      yield result
+    }
+  }
+
+  test("findActiveSubscriptionsByUser should return empty list for user with no subscriptions") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val userId = UserId("nonexistent-user")
+          for activeSubscriptions <- store.commit(store.findActiveSubscriptionsByUser(userId))
+          yield {
+            assertEquals(activeSubscriptions, List.empty[Subscription])
+          }
+        }
+      yield result
+    }
+  }
+
+  test("complete order lifecycle should work") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val userId = UserId("user1")
+          val order = createTestOrder(userId = userId)
+          val subscription = createTestSubscription(order.id, userId)
+          val updatedTime = Instant.now().plusSeconds(60)
+          val cancelledOrder = order.copy(status = OrderStatus.Cancelled, updatedAt = updatedTime)
+
+          for
+            _ <- store.commit(store.createOrder(order))
+            _ <- store.commit(store.createSubscription(subscription))
+
+            initialOrders <- store.commit(store.findOrdersByUser(userId))
+            initialSubscriptions <- store.commit(store.findSubscriptionsByUser(userId))
+            initialActiveSubscriptions <- store.commit(store.findActiveSubscriptionsByUser(userId))
+
+            _ <- store.commit(store.updateOrder(cancelledOrder))
+
+            finalOrder <- store.commit(store.findOrder(order.id))
+            finalOrders <- store.commit(store.findOrdersByUser(userId))
+          yield {
+            assertEquals(initialOrders.length, 1)
+            assertEquals(initialSubscriptions.length, 1)
+            assertEquals(initialActiveSubscriptions.length, 1)
+
+            assert(finalOrder.isDefined)
+            assertEquals(finalOrder.get.status, OrderStatus.Cancelled)
+            assertEquals(finalOrders.head.status, OrderStatus.Cancelled)
+          }
+        }
+      yield result
+    }
+  }
+
+  test("multiple users and orders should be isolated correctly") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val user1 = UserId("user1")
+          val user2 = UserId("user2")
+
+          val order1 = createTestOrder(userId = user1)
+          val order2 = createTestOrder(userId = user1)
+          val order3 = createTestOrder(userId = user2)
+
+          val subscription1 = createTestSubscription(order1.id, user1)
+          val subscription2 = createTestSubscription(order2.id, user1)
+          val subscription3 = createTestSubscription(order3.id, user2)
+
+          for
+            _ <- store.commit(store.createOrder(order1))
+            _ <- store.commit(store.createOrder(order2))
+            _ <- store.commit(store.createOrder(order3))
+            _ <- store.commit(store.createSubscription(subscription1))
+            _ <- store.commit(store.createSubscription(subscription2))
+            _ <- store.commit(store.createSubscription(subscription3))
+
+            user1Orders <- store.commit(store.findOrdersByUser(user1))
+            user2Orders <- store.commit(store.findOrdersByUser(user2))
+            user1Subscriptions <- store.commit(store.findSubscriptionsByUser(user1))
+            user2Subscriptions <- store.commit(store.findSubscriptionsByUser(user2))
+            user1ActiveSubscriptions <- store.commit(store.findActiveSubscriptionsByUser(user1))
+            user2ActiveSubscriptions <- store.commit(store.findActiveSubscriptionsByUser(user2))
+          yield {
+            assertEquals(user1Orders.length, 2)
+            assertEquals(user2Orders.length, 1)
+            assertEquals(user1Subscriptions.length, 2)
+            assertEquals(user2Subscriptions.length, 1)
+            assertEquals(user1ActiveSubscriptions.length, 2)
+            assertEquals(user2ActiveSubscriptions.length, 1)
+
+            assert(user1Orders.forall(_.userId == user1))
+            assert(user2Orders.forall(_.userId == user2))
+            assert(user1Subscriptions.forall(_.userId == user1))
+            assert(user2Subscriptions.forall(_.userId == user2))
+          }
+        }
+      yield result
+    }
+  }
+
   private def createDatabaseConfig(postgres: PostgreSQLContainer): IO[PostgresStore.DatabaseConfig] = IO.pure(
     PostgresStore.DatabaseConfig(
       url = postgres.jdbcUrl,
@@ -120,6 +379,24 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
     startDate = Instant.now(),
     endDate = Instant.now().plusSeconds(2592000),
     status = SubscriptionStatus.Active,
+    createdAt = Instant.now(),
+    updatedAt = Instant.now()
+  )
+
+  private def createTestSubscriptionWithDates(
+    orderId: OrderId,
+    userId: UserId,
+    startDate: Instant,
+    endDate: Instant,
+    status: SubscriptionStatus = SubscriptionStatus.Active
+  ): Subscription = Subscription(
+    id = SubscriptionId(UUID.randomUUID()),
+    orderId = orderId,
+    userId = userId,
+    productId = ProductId("monthly"),
+    startDate = startDate,
+    endDate = endDate,
+    status = status,
     createdAt = Instant.now(),
     updatedAt = Instant.now()
   )

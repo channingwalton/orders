@@ -10,6 +10,7 @@ This directory contains all prompts and instructions for the Order Management Sy
 - [02-transaction-handling.md](reviews/02-transaction-handling.md) - 🟢 **Complete** - Single transaction wrapping for operations
 - [03-local-development-setup.md](reviews/03-local-development-setup.md) - 🟢 **Complete** - Docker scripts and local dev documentation
 - [04-readme-corrections.md](reviews/04-readme-corrections.md) - 🟢 **Complete** - Development vs CI command clarification
+- [05-postgres-store-test-coverage.md](reviews/05-postgres-store-test-coverage.md) - 🟢 **Complete** - Add missing tests for updateOrder and findActiveSubscriptionsByUser
 
 ## Feature Prompts
 - [01-user-subscription-status.md](features/01-user-subscription-status.md) - 🟢 **Complete** - Check whether a user is currently subscribed
