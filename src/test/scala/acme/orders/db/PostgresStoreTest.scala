@@ -14,7 +14,7 @@ import java.util.UUID
 class PostgresStoreTest extends CatsEffectSuite with TestContainerForAll:
 
   override val containerDef = PostgreSQLContainer.Def(
-    dockerImageName = DockerImageName.parse("postgres:13"),
+    dockerImageName = DockerImageName.parse("postgres:17"),
     databaseName = "test",
     username = "test",
     password = "test"
@@ -77,12 +77,13 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForAll:
     }
   }
 
-  private def createDatabaseConfig(postgres: PostgreSQLContainer): IO[PostgresStore.DatabaseConfig] =
-    IO.pure(PostgresStore.DatabaseConfig(
+  private def createDatabaseConfig(postgres: PostgreSQLContainer): IO[PostgresStore.DatabaseConfig] = IO.pure(
+    PostgresStore.DatabaseConfig(
       url = postgres.jdbcUrl,
       user = postgres.username,
       password = postgres.password
-    ))
+    )
+  )
 
   private def migrateDatabase(config: PostgresStore.DatabaseConfig): IO[Unit] =
     IO.fromEither(DatabaseMigration.migrate(config).left.map(msg => new RuntimeException(msg)))
@@ -91,28 +92,27 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForAll:
     id: OrderId = OrderId(UUID.randomUUID()),
     userId: UserId = UserId("user1"),
     productId: ProductId = ProductId("monthly")
-  ): Order =
-    Order(
-      id = id,
-      userId = userId,
-      productId = productId,
-      status = OrderStatus.Active,
-      createdAt = Instant.now(),
-      updatedAt = Instant.now()
-    )
+  ): Order = Order(
+    id = id,
+    userId = userId,
+    productId = productId,
+    status = OrderStatus.Active,
+    createdAt = Instant.now(),
+    updatedAt = Instant.now()
+  )
 
   private def createTestSubscription(
     orderId: OrderId,
     userId: UserId
-  ): Subscription =
-    Subscription(
-      id = SubscriptionId(UUID.randomUUID()),
-      orderId = orderId,
-      userId = userId,
-      productId = ProductId("monthly"),
-      startDate = Instant.now(),
-      endDate = Instant.now().plusSeconds(2592000),
-      status = SubscriptionStatus.Active,
-      createdAt = Instant.now(),
-      updatedAt = Instant.now()
-    )
+  ): Subscription = Subscription(
+    id = SubscriptionId(UUID.randomUUID()),
+    orderId = orderId,
+    userId = userId,
+    productId = ProductId("monthly"),
+    startDate = Instant.now(),
+    endDate = Instant.now().plusSeconds(2592000),
+    status = SubscriptionStatus.Active,
+    createdAt = Instant.now(),
+    updatedAt = Instant.now()
+  )
+

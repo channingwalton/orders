@@ -1,5 +1,7 @@
 # Order Management System
 
+[![CI](https://github.com/channingwalton/orders/actions/workflows/ci.yml/badge.svg)](https://github.com/channingwalton/orders/actions/workflows/ci.yml)
+
 A Scala-based order management system for streaming services, built with http4s, doobie, and PostgreSQL.
 
 ## Overview
