@@ -115,5 +115,37 @@ orderService.someMethod(params)
 - Error responses should be generated efficiently
 - No additional database calls for error formatting
 
+## Implementation Results
+
+### Error Mapping Implementation
+- ✅ Added `handleServiceError` function in OrderRoutes that maps ServiceError types to HTTP status codes
+- ✅ OrderNotFound → 404 Not Found with error message
+- ✅ InvalidProduct → 400 Bad Request with error message  
+- ✅ OrderAlreadyCancelled → 409 Conflict with error message
+- ✅ DatabaseError → 500 Internal Server Error with generic message (no DB details exposed)
+
+### Route Coverage
+- ✅ All OrderService method calls wrapped with `.handleErrorWith` error recovery
+- ✅ POST /orders (create order) - handles InvalidProduct errors
+- ✅ GET /orders/{orderId} (get order) - handles OrderNotFound errors
+- ✅ GET /users/{userId}/orders (get user orders) - error handling added
+- ✅ GET /users/{userId}/subscriptions (get user subscriptions) - error handling added
+- ✅ GET /users/{userId}/subscription-status (get subscription status) - error handling added
+- ✅ PUT /orders/{orderId}/cancel (cancel order) - handles OrderNotFound and OrderAlreadyCancelled errors
+- ✅ GET /orders/{orderId}/cancellation (get cancellation) - error handling added
+
+### Test Coverage
+- ✅ Added test for 400 Bad Request when creating order with invalid product
+- ✅ Added test for 404 Not Found when getting non-existent order
+- ✅ Added test for 409 Conflict when cancelling already cancelled order
+- ✅ All existing tests continue to pass (36 total tests passing)
+- ✅ Error responses include proper error messages in response body
+
+### Technical Implementation
+- Error handling uses cats-effect `.handleErrorWith` pattern
+- Generic "Internal server error" message for DatabaseError to prevent information leakage
+- Successful operations remain unchanged with no performance impact
+- Error responses generated efficiently without additional database calls
+
 ## Status
-🔴 **Pending** - Ready for implementation
+🟢 **Complete** - Successfully implemented and tested

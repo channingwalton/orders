@@ -107,6 +107,47 @@ class OrderRoutesTest extends CatsEffectSuite:
     }
   }
 
+  test("POST /orders should return 400 for invalid product") {
+    for
+      service <- createErrorMockOrderService()
+      routes = OrderRoutes.routes[IO](service)
+      request = Request[IO](Method.POST, uri"/orders").withEntity(CreateOrderRequest("user1", "invalid").asJson)
+      response <- routes.orNotFound.run(request)
+      body <- response.as[String]
+    yield {
+      assertEquals(response.status, Status.BadRequest)
+      assert(body.contains("Invalid product"))
+    }
+  }
+
+  test("GET /orders/{id} should return 404 for non-existent order") {
+    for
+      service <- createErrorMockOrderService()
+      routes = OrderRoutes.routes[IO](service)
+      orderId = UUID.randomUUID()
+      request = Request[IO](Method.GET, Uri.unsafeFromString(s"/orders/$orderId"))
+      response <- routes.orNotFound.run(request)
+      body <- response.as[String]
+    yield {
+      assertEquals(response.status, Status.NotFound)
+      assert(body.contains("Order not found"))
+    }
+  }
+
+  test("PUT /orders/{id}/cancel should return 409 for already cancelled order") {
+    for
+      service <- createErrorMockOrderService()
+      routes = OrderRoutes.routes[IO](service)
+      orderId = UUID.randomUUID()
+      request = Request[IO](Method.PUT, Uri.unsafeFromString(s"/orders/$orderId/cancel"))
+      response <- routes.orNotFound.run(request)
+      body <- response.as[String]
+    yield {
+      assertEquals(response.status, Status.Conflict)
+      assert(body.contains("Order already cancelled"))
+    }
+  }
+
   private def createMockOrderService(): IO[OrderService[IO]] = IO.pure(new OrderService[IO] {
     def createOrder(request: CreateOrderRequest): IO[Order] = IO.pure(
       Order(
@@ -206,4 +247,24 @@ class OrderRoutesTest extends CatsEffectSuite:
         )
       )
     )
+  })
+
+  private def createErrorMockOrderService(): IO[OrderService[IO]] = IO.pure(new OrderService[IO] {
+    def createOrder(request: CreateOrderRequest): IO[Order] = IO.raiseError(ServiceError.InvalidProduct(ProductId(request.productId)))
+
+    def getOrder(orderId: OrderId): IO[Option[Order]] = IO.raiseError(ServiceError.OrderNotFound(orderId))
+
+    def getUserOrders(userId: UserId): IO[List[Order]] = IO.pure(List.empty)
+
+    def getUserSubscriptions(userId: UserId): IO[List[Subscription]] = IO.pure(List.empty)
+
+    def getUserSubscriptionStatus(userId: UserId): IO[UserSubscriptionStatus] = IO.pure(
+      UserSubscriptionStatus(userId.value, false, List.empty, 0)
+    )
+
+    def cancelOrder(orderId: OrderId): IO[Unit] = IO.raiseError(ServiceError.OrderAlreadyCancelled(orderId))
+
+    def cancelOrder(orderId: OrderId, request: CancelOrderRequest): IO[Unit] = IO.raiseError(ServiceError.OrderAlreadyCancelled(orderId))
+
+    def getOrderCancellation(orderId: OrderId): IO[Option[OrderCancellation]] = IO.pure(None)
   })
