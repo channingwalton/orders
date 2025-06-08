@@ -68,6 +68,8 @@ Write a readme.md that describes the project and its API.
 
 Run `sup` on the command line to see what can be updated. If after updating all the tests pass then commit and push.
 
+[Aside: sup is my alias for `sbt ";dependencyUpdates; reload plugins; dependencyUpdates"`]
+
 ## Process 
 - Before pushing code to the repo, run `sbt commitCheck` and only push when that passes
 
