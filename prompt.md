@@ -30,6 +30,7 @@ The service should have this API:
 
 ## Code style
 - Use the projects in the examples directory to inform the style of the project
+  - not included in the repo as they aren't projects I could share publicly
 - layer the app:
   - the http route should just deal with http requests and responses, calling an internal service API to do the work
   - the internal service API should use model objects and consist of a trait with concrete implementation to facilitate testing with mocks
@@ -87,3 +88,7 @@ PostgresStore.resource[IO](config).use { store =>
   // the test
 }
 ```
+
+### 2. Transactions
+
+OrderService should wrap each operation in a single transaction, not commit during the operation. 

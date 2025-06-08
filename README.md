@@ -1,6 +1,9 @@
 # Order Management System
 
 [![CI](https://github.com/channingwalton/orders/actions/workflows/ci.yml/badge.svg)](https://github.com/channingwalton/orders/actions/workflows/ci.yml)
+This project has been written entirely by Claude Code, using `prompt.md`. I haven't included the transcript, I should have kept it, sorry, but it was mostly telling claude to read the prompt file and make sure tests pass before committing and pushing to GH.
+
+----
 
 A Scala-based order management system for streaming services, built with http4s, doobie, and PostgreSQL.
 
