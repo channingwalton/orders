@@ -5,10 +5,11 @@ import java.util.UUID
 
 import acme.orders.db.Store
 import acme.orders.models._
-import acme.orders.utils.TimeUtils
+import acme.orders.utils.{Logging, TimeUtils}
 import cats.MonadThrow
 import cats.effect._
 import cats.syntax.all._
+import org.typelevel.log4cats.Logger
 
 trait OrderService[F[_]]:
   def createOrder(request: CreateOrderRequest): F[Order]
@@ -20,13 +21,21 @@ trait OrderService[F[_]]:
   def cancelOrder(orderId: OrderId, request: CancelOrderRequest): F[Unit]
   def getOrderCancellation(orderId: OrderId): F[Option[OrderCancellation]]
 
-class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
+class OrderServiceImpl[F[_]: MonadThrow: Sync, G[_]: MonadThrow](
   store: Store[F, G],
   clock: Clock[F]
-) extends OrderService[F]:
+)(implicit logger: Logger[F])
+    extends OrderService[F]:
 
   def createOrder(request: CreateOrderRequest): F[Order] =
     for
+      _ <- logger.info(
+        Logging.logWithContext(
+          "Creating order",
+          userId = Some(request.userId),
+          additionalContext = Map("productId" -> request.productId)
+        )
+      )
       rawNow <- clock.realTimeInstant
       now = TimeUtils.truncateToSeconds(rawNow)
       orderId = OrderId(UUID.randomUUID())
@@ -40,6 +49,14 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
           _ <- store.createOrder(order)
           _ <- store.createSubscription(subscription)
         yield ()
+      )
+      _ <- logger.info(
+        Logging.logWithContext(
+          "Order created successfully",
+          userId = Some(request.userId),
+          orderId = Some(orderId.value.toString),
+          additionalContext = Map("productId" -> request.productId)
+        )
       )
     yield order
 
@@ -63,6 +80,16 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
 
   def cancelOrder(orderId: OrderId, request: CancelOrderRequest): F[Unit] =
     for
+      _ <- logger.info(
+        Logging.logWithContext(
+          "Cancelling order",
+          orderId = Some(orderId.value.toString),
+          additionalContext = Map(
+            "reason" -> request.reason.map(_.toString).getOrElse("UserRequest"),
+            "cancellationType" -> request.cancellationType.map(_.toString).getOrElse("Immediate")
+          )
+        )
+      )
       rawNow <- clock.realTimeInstant
       now = TimeUtils.truncateToSeconds(rawNow)
       _ <- store.commit(
@@ -102,13 +129,28 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
           _ <- cancelledSubscriptions.traverse(store.updateSubscription)
         yield ()
       )
+      _ <- logger.info(
+        Logging.logWithContext(
+          "Order cancelled successfully",
+          orderId = Some(orderId.value.toString),
+          additionalContext = Map(
+            "reason" -> request.reason.map(_.toString).getOrElse("UserRequest"),
+            "subscriptionCount" -> "updated"
+          )
+        )
+      )
     yield ()
 
   def getOrderCancellation(orderId: OrderId): F[Option[OrderCancellation]] = store.commit(store.findOrderCancellation(orderId))
 
   private def validateProduct(productId: ProductId): F[Unit] = Product.values.find(_.id == productId) match
     case Some(_) => ().pure[F]
-    case None    => ServiceError.InvalidProduct(productId).raiseError[F, Unit]
+    case None => logger.warn(
+        Logging.logWithContext(
+          "Invalid product validation failed",
+          additionalContext = Map("productId" -> productId.value)
+        )
+      ) *> ServiceError.InvalidProduct(productId).raiseError[F, Unit]
 
   private def createSubscriptionForOrder(order: Order, now: Instant): F[Subscription] = Product.values.find(_.id == order.productId) match
     case Some(product) =>
@@ -134,11 +176,15 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
     case None => ServiceError.InvalidProduct(order.productId).raiseError[F, Subscription]
 
 object OrderService:
-  def apply[F[_]: MonadThrow: Clock, G[_]: MonadThrow](
+  def apply[F[_]: MonadThrow: Clock: Sync, G[_]: MonadThrow](
     store: Store[F, G]
-  ): OrderService[F] = new OrderServiceImpl(store, Clock[F])
+  ): OrderService[F] =
+    implicit val logger: Logger[F] = Logging.logger[F]
+    new OrderServiceImpl(store, Clock[F])
 
-  def apply[F[_]: MonadThrow, G[_]: MonadThrow](
+  def apply[F[_]: MonadThrow: Sync, G[_]: MonadThrow](
     store: Store[F, G],
     clock: Clock[F]
-  ): OrderService[F] = new OrderServiceImpl(store, clock)
+  ): OrderService[F] =
+    implicit val logger: Logger[F] = Logging.logger[F]
+    new OrderServiceImpl(store, clock)
