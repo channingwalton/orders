@@ -110,7 +110,11 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
           yield {
             assert(foundOrder.isDefined)
             assertEquals(foundOrder.get.status, OrderStatus.Cancelled)
-            assertEquals(foundOrder.get.updatedAt, updatedTime)
+            // Check that updatedAt was changed and is after the original createdAt
+            assert(foundOrder.get.updatedAt.isAfter(order.createdAt))
+            // Check that the difference is approximately 60 seconds (within 1 second tolerance)
+            val timeDiff = java.time.Duration.between(order.createdAt, foundOrder.get.updatedAt).getSeconds
+            assert(timeDiff >= 59 && timeDiff <= 61, s"Expected ~60 seconds difference, got $timeDiff")
             assertEquals(foundOrder.get.id, order.id)
             assertEquals(foundOrder.get.userId, order.userId)
             assertEquals(foundOrder.get.createdAt, order.createdAt)

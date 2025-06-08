@@ -12,6 +12,7 @@ This directory contains all prompts and instructions for the Order Management Sy
 - [04-readme-corrections.md](reviews/04-readme-corrections.md) - 🟢 **Complete** - Development vs CI command clarification
 - [05-postgres-store-test-coverage.md](reviews/05-postgres-store-test-coverage.md) - 🟢 **Complete** - Add missing tests for updateOrder and findActiveSubscriptionsByUser
 - [06-postgres-test-optimization.md](reviews/06-postgres-test-optimization.md) - 🟢 **Complete** - Optimize PostgresStore tests by reducing unnecessary commits
+- [07-postgres-timestamp-precision-fix.md](reviews/07-postgres-timestamp-precision-fix.md) - 🟢 **Complete** - Fix intermittent CI failure due to timestamp precision differences
 
 ## Feature Prompts
 - [01-user-subscription-status.md](features/01-user-subscription-status.md) - 🟢 **Complete** - Check whether a user is currently subscribed
