@@ -2,7 +2,7 @@ package acme.orders.routes
 
 import acme.orders.OrderService
 import acme.orders.models._
-import acme.orders.utils.{CorrelationId, Logging}
+import acme.orders.utils.CorrelationId
 import cats.effect._
 import cats.syntax.all._
 import io.circe.syntax._
@@ -10,45 +10,41 @@ import org.http4s._
 import org.http4s.circe.CirceEntityDecoder._
 import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
-import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.{LoggerFactory, SelfAwareStructuredLogger}
 
 object OrderRoutes:
 
-  def routes[F[_]: Async](orderService: OrderService[F]): HttpRoutes[F] =
+  def routes[F[_]: Async: LoggerFactory](orderService: OrderService[F]): HttpRoutes[F] =
     val dsl = new Http4sDsl[F] {}
     import dsl.*
-    implicit val logger: Logger[F] = Logging.logger[F]
+    val logger: SelfAwareStructuredLogger[F] = LoggerFactory[F].getLogger
 
     def logRequest(method: Method, uri: Uri, correlationId: CorrelationId, startTime: Long): F[Unit] = logger.info(
-      Logging.logWithContext(
-        s"HTTP Request: ${method.name} ${uri.path}",
-        correlationId = Some(correlationId),
-        additionalContext = Map(
-          "method" -> method.name,
-          "uri" -> uri.toString,
-          "timestamp" -> startTime.toString
-        )
+      Map(
+        "operation" -> "httpRequest",
+        "method" -> method.name,
+        "uri" -> uri.toString,
+        "correlationId" -> correlationId.value,
+        "timestamp" -> startTime.toString
       )
-    )
+    )(s"HTTP Request: ${method.name} ${uri.path}")
 
     def logResponse(status: Status, correlationId: CorrelationId, startTime: Long): F[Unit] = logger.info(
-      Logging.logWithContext(
-        s"HTTP Response: ${status.code}",
-        correlationId = Some(correlationId),
-        additionalContext = Map(
-          "statusCode" -> status.code.toString,
-          "duration" -> Logging.formatDuration(startTime)
-        )
+      Map(
+        "operation" -> "httpResponse",
+        "statusCode" -> status.code.toString,
+        "correlationId" -> correlationId.value,
+        "duration" -> s"${System.currentTimeMillis() - startTime}ms"
       )
-    )
+    )(s"HTTP Response: ${status.code}")
 
     def handleServiceError(error: ServiceError, correlationId: CorrelationId): F[Response[F]] = logger.error(
-      Logging.logWithContext(
-        s"Service error: ${error.getMessage}",
-        correlationId = Some(correlationId),
-        additionalContext = Map("errorType" -> error.getClass.getSimpleName)
+      Map(
+        "operation" -> "handleServiceError",
+        "correlationId" -> correlationId.value,
+        "errorType" -> error.getClass.getSimpleName
       )
-    ) *> (error match
+    )(s"Service error: ${error.getMessage}") *> (error match
       case ServiceError.OrderNotFound(_)         => NotFound(error.getMessage)
       case ServiceError.InvalidProduct(_)        => BadRequest(error.getMessage)
       case ServiceError.OrderAlreadyCancelled(_) => Conflict(error.getMessage)
@@ -67,11 +63,11 @@ object OrderRoutes:
         yield response).handleErrorWith {
           case error: ServiceError => handleServiceError(error, correlationId)
           case _ => logger.error(
-              Logging.logWithContext(
-                "Unexpected error in POST /orders",
-                correlationId = Some(correlationId)
+              Map(
+                "operation" -> "POST /orders",
+                "correlationId" -> correlationId.value
               )
-            ) *> InternalServerError("Unexpected error")
+            )("Unexpected error") *> InternalServerError("Unexpected error")
         }
 
       case req @ GET -> Root / "orders" / UUIDVar(orderId) =>
@@ -87,12 +83,12 @@ object OrderRoutes:
         yield response).handleErrorWith {
           case error: ServiceError => handleServiceError(error, correlationId)
           case _ => logger.error(
-              Logging.logWithContext(
-                "Unexpected error in GET /orders/{id}",
-                correlationId = Some(correlationId),
-                orderId = Some(orderId.toString)
+              Map(
+                "operation" -> "GET /orders/{id}",
+                "correlationId" -> correlationId.value,
+                "orderId" -> orderId.toString
               )
-            ) *> InternalServerError("Unexpected error")
+            )("Unexpected error") *> InternalServerError("Unexpected error")
         }
 
       case req @ GET -> Root / "users" / userId / "orders" =>
@@ -106,12 +102,12 @@ object OrderRoutes:
         yield response).handleErrorWith {
           case error: ServiceError => handleServiceError(error, correlationId)
           case _ => logger.error(
-              Logging.logWithContext(
-                "Unexpected error in GET /users/{userId}/orders",
-                correlationId = Some(correlationId),
-                userId = Some(userId)
+              Map(
+                "operation" -> "GET /users/{userId}/orders",
+                "correlationId" -> correlationId.value,
+                "userId" -> userId
               )
-            ) *> InternalServerError("Unexpected error")
+            )("Unexpected error") *> InternalServerError("Unexpected error")
         }
 
       case req @ GET -> Root / "users" / userId / "subscriptions" =>
@@ -125,12 +121,12 @@ object OrderRoutes:
         yield response).handleErrorWith {
           case error: ServiceError => handleServiceError(error, correlationId)
           case _ => logger.error(
-              Logging.logWithContext(
-                "Unexpected error in GET /users/{userId}/subscriptions",
-                correlationId = Some(correlationId),
-                userId = Some(userId)
+              Map(
+                "operation" -> "GET /users/{userId}/subscriptions",
+                "correlationId" -> correlationId.value,
+                "userId" -> userId
               )
-            ) *> InternalServerError("Unexpected error")
+            )("Unexpected error") *> InternalServerError("Unexpected error")
         }
 
       case req @ GET -> Root / "users" / userId / "subscription-status" =>
@@ -144,12 +140,12 @@ object OrderRoutes:
         yield response).handleErrorWith {
           case error: ServiceError => handleServiceError(error, correlationId)
           case _ => logger.error(
-              Logging.logWithContext(
-                "Unexpected error in GET /users/{userId}/subscription-status",
-                correlationId = Some(correlationId),
-                userId = Some(userId)
+              Map(
+                "operation" -> "GET /users/{userId}/subscription-status",
+                "correlationId" -> correlationId.value,
+                "userId" -> userId
               )
-            ) *> InternalServerError("Unexpected error")
+            )("Unexpected error") *> InternalServerError("Unexpected error")
         }
 
       case req @ PUT -> Root / "orders" / UUIDVar(orderId) / "cancel" =>
@@ -164,12 +160,12 @@ object OrderRoutes:
         yield response).handleErrorWith {
           case error: ServiceError => handleServiceError(error, correlationId)
           case _ => logger.error(
-              Logging.logWithContext(
-                "Unexpected error in PUT /orders/{orderId}/cancel",
-                correlationId = Some(correlationId),
-                orderId = Some(orderId.toString)
+              Map(
+                "operation" -> "PUT /orders/{orderId}/cancel",
+                "correlationId" -> correlationId.value,
+                "orderId" -> orderId.toString
               )
-            ) *> InternalServerError("Unexpected error")
+            )("Unexpected error") *> InternalServerError("Unexpected error")
         }
 
       case req @ GET -> Root / "orders" / UUIDVar(orderId) / "cancellation" =>
@@ -185,11 +181,11 @@ object OrderRoutes:
         yield response).handleErrorWith {
           case error: ServiceError => handleServiceError(error, correlationId)
           case _ => logger.error(
-              Logging.logWithContext(
-                "Unexpected error in GET /orders/{orderId}/cancellation",
-                correlationId = Some(correlationId),
-                orderId = Some(orderId.toString)
+              Map(
+                "operation" -> "GET /orders/{orderId}/cancellation",
+                "correlationId" -> correlationId.value,
+                "orderId" -> orderId.toString
               )
-            ) *> InternalServerError("Unexpected error")
+            )("Unexpected error") *> InternalServerError("Unexpected error")
         }
     }

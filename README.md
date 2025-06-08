@@ -2,7 +2,9 @@
 
 [![CI](https://github.com/channingwalton/orders/actions/workflows/ci.yml/badge.svg)](https://github.com/channingwalton/orders/actions/workflows/ci.yml)
 
-This project has been written entirely by Claude Code, using `prompt.md`. I haven't included the transcript, I should have kept it, sorry, but it was mostly telling claude to read the prompt file and make sure tests pass before committing and pushing to GH.
+This project has been written entirely by Claude Code. I haven't included the transcript, I should have kept it, sorry, but it was mostly telling claude to read the prompt file and make sure tests pass before committing and pushing to GH.
+
+See the prompts directory for where the prompts claude worked from are kept.
 
 ----
 

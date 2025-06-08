@@ -11,8 +11,12 @@ import munit.CatsEffectSuite
 import org.http4s.circe._
 import org.http4s.implicits._
 import org.http4s.{Method, Request, Status, Uri}
+import org.typelevel.log4cats.LoggerFactory
+import org.typelevel.log4cats.slf4j.Slf4jFactory
 
 class OrderRoutesTest extends CatsEffectSuite:
+
+  implicit val loggerFactory: LoggerFactory[IO] = Slf4jFactory.create[IO]
 
   test("POST /orders should create order") {
     for

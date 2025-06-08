@@ -6,6 +6,8 @@ import acme.orders.models._
 import acme.orders.utils.TimeUtils
 import cats.effect._
 import munit.CatsEffectSuite
+import org.typelevel.log4cats.LoggerFactory
+import org.typelevel.log4cats.slf4j.Slf4jFactory
 
 class OrderServiceTest extends CatsEffectSuite:
 
@@ -184,7 +186,9 @@ class OrderServiceTest extends CatsEffectSuite:
     }
   }
 
-  private def createOrderService(): IO[OrderService[IO]] = IO.pure(OrderService[IO, IO](new MockStore(), Clock[IO]))
+  private def createOrderService(): IO[OrderService[IO]] =
+    implicit val loggerFactory: LoggerFactory[IO] = Slf4jFactory.create[IO]
+    IO.pure(OrderService[IO, IO](new MockStore(), Clock[IO]))
 
   private class MockStore extends acme.orders.db.Store[IO, IO]:
     private val orders = mutable.Map[OrderId, Order]()
