@@ -198,12 +198,12 @@ The application follows a layered architecture:
 
 This design enables easy testing with mocks and clear separation of concerns.
 
-### Running CI Pipeline
+### Development Workflow
 
-The project includes a CI alias for running all checks:
+For development, use the `commitCheck` alias to run all checks before committing:
 
 ```bash
-sbt ci
+sbt commitCheck
 ```
 
 This runs:
@@ -294,7 +294,7 @@ curl -X PUT http://localhost:8080/orders/$ORDER_ID/cancel
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Run tests: `sbt ci`
+4. Run tests: `sbt commitCheck`
 5. Submit a pull request
 
 ## License
