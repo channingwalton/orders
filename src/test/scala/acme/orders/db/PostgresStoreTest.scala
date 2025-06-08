@@ -2,7 +2,7 @@ package acme.orders.db
 
 import cats.effect.*
 import munit.CatsEffectSuite
-import com.dimafeng.testcontainers.munit.TestContainerForAll
+import com.dimafeng.testcontainers.munit.TestContainerForEach
 import com.dimafeng.testcontainers.PostgreSQLContainer
 import org.testcontainers.utility.DockerImageName
 import doobie.*
@@ -11,7 +11,7 @@ import acme.orders.models.*
 import java.time.Instant
 import java.util.UUID
 
-class PostgresStoreTest extends CatsEffectSuite with TestContainerForAll:
+class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
 
   override val containerDef = PostgreSQLContainer.Def(
     dockerImageName = DockerImageName.parse("postgres:15"),
@@ -25,15 +25,18 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForAll:
       for
         config <- createDatabaseConfig(postgres)
         _ <- migrateDatabase(config)
-        store <- PostgresStore.resource[IO](config).use(IO.pure)
-        order = createTestOrder()
-        _ <- store.commit(store.createOrder(order))
-        foundOrder <- store.commit(store.findOrder(order.id))
-      yield {
-        assert(foundOrder.isDefined)
-        assertEquals(foundOrder.get.id, order.id)
-        assertEquals(foundOrder.get.userId, order.userId)
-      }
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val order = createTestOrder()
+          for
+            _ <- store.commit(store.createOrder(order))
+            foundOrder <- store.commit(store.findOrder(order.id))
+          yield {
+            assert(foundOrder.isDefined)
+            assertEquals(foundOrder.get.id, order.id)
+            assertEquals(foundOrder.get.userId, order.userId)
+          }
+        }
+      yield result
     }
   }
 
@@ -42,19 +45,22 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForAll:
       for
         config <- createDatabaseConfig(postgres)
         _ <- migrateDatabase(config)
-        store <- PostgresStore.resource[IO](config).use(IO.pure)
-        userId = UserId("user1")
-        order1 = createTestOrder(userId = userId)
-        order2 = createTestOrder(userId = userId)
-        order3 = createTestOrder(userId = UserId("user2"))
-        _ <- store.commit(store.createOrder(order1))
-        _ <- store.commit(store.createOrder(order2))
-        _ <- store.commit(store.createOrder(order3))
-        userOrders <- store.commit(store.findOrdersByUser(userId))
-      yield {
-        assertEquals(userOrders.length, 2)
-        assert(userOrders.forall(_.userId == userId))
-      }
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val userId = UserId("user1")
+          val order1 = createTestOrder(userId = userId)
+          val order2 = createTestOrder(userId = userId)
+          val order3 = createTestOrder(userId = UserId("user2"))
+          for
+            _ <- store.commit(store.createOrder(order1))
+            _ <- store.commit(store.createOrder(order2))
+            _ <- store.commit(store.createOrder(order3))
+            userOrders <- store.commit(store.findOrdersByUser(userId))
+          yield {
+            assertEquals(userOrders.length, 2)
+            assert(userOrders.forall(_.userId == userId))
+          }
+        }
+      yield result
     }
   }
 
@@ -63,17 +69,20 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForAll:
       for
         config <- createDatabaseConfig(postgres)
         _ <- migrateDatabase(config)
-        store <- PostgresStore.resource[IO](config).use(IO.pure)
-        order = createTestOrder()
-        subscription = createTestSubscription(order.id, order.userId)
-        _ <- store.commit(store.createOrder(order))
-        _ <- store.commit(store.createSubscription(subscription))
-        subscriptions <- store.commit(store.findSubscriptionsByUser(order.userId))
-      yield {
-        assertEquals(subscriptions.length, 1)
-        assertEquals(subscriptions.head.id, subscription.id)
-        assertEquals(subscriptions.head.orderId, order.id)
-      }
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val order = createTestOrder()
+          val subscription = createTestSubscription(order.id, order.userId)
+          for
+            _ <- store.commit(store.createOrder(order))
+            _ <- store.commit(store.createSubscription(subscription))
+            subscriptions <- store.commit(store.findSubscriptionsByUser(order.userId))
+          yield {
+            assertEquals(subscriptions.length, 1)
+            assertEquals(subscriptions.head.id, subscription.id)
+            assertEquals(subscriptions.head.orderId, order.id)
+          }
+        }
+      yield result
     }
   }
 
