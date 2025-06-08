@@ -14,29 +14,22 @@ import java.util.UUID
 
 class PostgresStore[F[_]: MonadCancelThrow](xa: Transactor[F]) extends Store[F, ConnectionIO]:
 
-  def createOrder(order: Order): ConnectionIO[OrderId] =
-    Statements.insertOrder(order).run.as(order.id)
+  def createOrder(order: Order): ConnectionIO[OrderId] = Statements.insertOrder(order).run.as(order.id)
 
-  def findOrder(orderId: OrderId): ConnectionIO[Option[Order]] =
-    Statements.selectOrder(orderId).option
+  def findOrder(orderId: OrderId): ConnectionIO[Option[Order]] = Statements.selectOrder(orderId).option
 
-  def findOrdersByUser(userId: UserId): ConnectionIO[List[Order]] =
-    Statements.selectOrdersByUser(userId).to[List]
+  def findOrdersByUser(userId: UserId): ConnectionIO[List[Order]] = Statements.selectOrdersByUser(userId).to[List]
 
-  def updateOrder(order: Order): ConnectionIO[Unit] =
-    Statements.updateOrderStatus(order.id, order.status, order.updatedAt).run.void
+  def updateOrder(order: Order): ConnectionIO[Unit] = Statements.updateOrderStatus(order.id, order.status, order.updatedAt).run.void
 
-  def createSubscription(subscription: Subscription): ConnectionIO[SubscriptionId] =
-    Statements.insertSubscription(subscription).run.as(subscription.id)
+  def createSubscription(subscription: Subscription): ConnectionIO[SubscriptionId] = Statements.insertSubscription(subscription).run.as(subscription.id)
 
-  def findSubscriptionsByUser(userId: UserId): ConnectionIO[List[Subscription]] =
-    Statements.selectSubscriptionsByUser(userId).to[List]
+  def findSubscriptionsByUser(userId: UserId): ConnectionIO[List[Subscription]] = Statements.selectSubscriptionsByUser(userId).to[List]
 
-  def commit[A](ca: ConnectionIO[A]): F[A] =
-    ca.transact(xa)
+  def commit[A](ca: ConnectionIO[A]): F[A] = ca.transact(xa)
 
 object PostgresStore:
-  
+
   case class DatabaseConfig(
     url: String,
     user: String,
@@ -46,7 +39,7 @@ object PostgresStore:
   )
 
   def transactor[F[_]: Async](config: DatabaseConfig): Resource[F, HikariTransactor[F]] =
-    for 
+    for
       hikariConfig <- Resource.pure {
         val hc = new HikariConfig()
         hc.setJdbcUrl(config.url)
@@ -59,5 +52,4 @@ object PostgresStore:
       xa <- HikariTransactor.fromHikariConfig[F](hikariConfig)
     yield xa
 
-  def resource[F[_]: Async](config: DatabaseConfig): Resource[F, PostgresStore[F]] =
-    transactor(config).map(new PostgresStore(_))
+  def resource[F[_]: Async](config: DatabaseConfig): Resource[F, PostgresStore[F]] = transactor(config).map(new PostgresStore(_))

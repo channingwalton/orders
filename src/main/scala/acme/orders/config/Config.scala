@@ -16,24 +16,21 @@ case class ServerConfig(
 )
 
 object Config:
-  
-  def load[F[_]: Async]: F[Config] =
-    (
-      serverConfig,
-      databaseConfig
-    ).parMapN(Config.apply).load[F]
 
-  private val serverConfig: ConfigValue[Effect, ServerConfig] =
-    (
-      env("HTTP_HOST").as[String].default("0.0.0.0"),
-      env("HTTP_PORT").as[Int].default(8080)
-    ).parMapN(ServerConfig.apply)
+  def load[F[_]: Async]: F[Config] = (
+    serverConfig,
+    databaseConfig
+  ).parMapN(Config.apply).load[F]
 
-  private val databaseConfig: ConfigValue[Effect, PostgresStore.DatabaseConfig] =
-    (
-      env("DATABASE_URL").as[String].default("jdbc:postgresql://localhost:5432/orders"),
-      env("DATABASE_USER").as[String].default("orders"),
-      env("DATABASE_PASSWORD").as[String].default("orders"),
-      env("DATABASE_DRIVER").as[String].default("org.postgresql.Driver"),
-      env("DATABASE_MAX_POOL_SIZE").as[Int].default(10)
-    ).parMapN(PostgresStore.DatabaseConfig.apply)
+  private val serverConfig: ConfigValue[Effect, ServerConfig] = (
+    env("HTTP_HOST").as[String].default("0.0.0.0"),
+    env("HTTP_PORT").as[Int].default(8080)
+  ).parMapN(ServerConfig.apply)
+
+  private val databaseConfig: ConfigValue[Effect, PostgresStore.DatabaseConfig] = (
+    env("DATABASE_URL").as[String].default("jdbc:postgresql://localhost:5432/orders"),
+    env("DATABASE_USER").as[String].default("orders"),
+    env("DATABASE_PASSWORD").as[String].default("orders"),
+    env("DATABASE_DRIVER").as[String].default("org.postgresql.Driver"),
+    env("DATABASE_MAX_POOL_SIZE").as[Int].default(10)
+  ).parMapN(PostgresStore.DatabaseConfig.apply)

@@ -59,7 +59,7 @@ object CreateOrderRequest:
 
 object Order:
   given Encoder[Order] = deriveEncoder
-  
+
 object Subscription:
   given Encoder[Subscription] = deriveEncoder
 
@@ -82,16 +82,16 @@ object ProductId:
 object OrderStatus:
   given Encoder[OrderStatus] = Encoder[String].contramap(_.toString.toLowerCase)
   given Decoder[OrderStatus] = Decoder[String].emap {
-    case "active" => Right(OrderStatus.Active)
+    case "active"    => Right(OrderStatus.Active)
     case "cancelled" => Right(OrderStatus.Cancelled)
-    case other => Left(s"Invalid order status: $other")
+    case other       => Left(s"Invalid order status: $other")
   }
 
 object SubscriptionStatus:
   given Encoder[SubscriptionStatus] = Encoder[String].contramap(_.toString.toLowerCase)
   given Decoder[SubscriptionStatus] = Decoder[String].emap {
-    case "active" => Right(SubscriptionStatus.Active)
-    case "expired" => Right(SubscriptionStatus.Expired)
+    case "active"    => Right(SubscriptionStatus.Active)
+    case "expired"   => Right(SubscriptionStatus.Expired)
     case "cancelled" => Right(SubscriptionStatus.Cancelled)
-    case other => Left(s"Invalid subscription status: $other")
+    case other       => Left(s"Invalid subscription status: $other")
   }

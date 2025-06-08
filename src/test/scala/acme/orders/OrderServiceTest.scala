@@ -73,38 +73,31 @@ class OrderServiceTest extends CatsEffectSuite:
     }
   }
 
-  private def createOrderService(): IO[OrderService[IO]] =
-    IO.pure(OrderService[IO, IO](new MockStore(), Clock[IO]))
+  private def createOrderService(): IO[OrderService[IO]] = IO.pure(OrderService[IO, IO](new MockStore(), Clock[IO]))
 
   private class MockStore extends acme.orders.db.Store[IO, IO]:
     private val orders = mutable.Map[OrderId, Order]()
     private val subscriptions = mutable.Map[SubscriptionId, Subscription]()
 
-    def createOrder(order: Order): IO[OrderId] =
-      IO {
-        orders += order.id -> order
-        order.id
-      }
+    def createOrder(order: Order): IO[OrderId] = IO {
+      orders += order.id -> order
+      order.id
+    }
 
-    def findOrder(orderId: OrderId): IO[Option[Order]] =
-      IO.pure(orders.get(orderId))
+    def findOrder(orderId: OrderId): IO[Option[Order]] = IO.pure(orders.get(orderId))
 
-    def findOrdersByUser(userId: UserId): IO[List[Order]] =
-      IO.pure(orders.values.filter(_.userId == userId).toList)
+    def findOrdersByUser(userId: UserId): IO[List[Order]] = IO.pure(orders.values.filter(_.userId == userId).toList)
 
-    def updateOrder(order: Order): IO[Unit] =
-      IO {
-        orders += order.id -> order
-      }
+    def updateOrder(order: Order): IO[Unit] = IO {
+      orders += order.id -> order
+    }
 
-    def createSubscription(subscription: Subscription): IO[SubscriptionId] =
-      IO {
-        subscriptions += subscription.id -> subscription
-        subscription.id
-      }
+    def createSubscription(subscription: Subscription): IO[SubscriptionId] = IO {
+      subscriptions += subscription.id -> subscription
+      subscription.id
+    }
 
-    def findSubscriptionsByUser(userId: UserId): IO[List[Subscription]] =
-      IO.pure(subscriptions.values.filter(_.userId == userId).toList)
+    def findSubscriptionsByUser(userId: UserId): IO[List[Subscription]] = IO.pure(subscriptions.values.filter(_.userId == userId).toList)
 
     def commit[A](fa: IO[A]): IO[A] = fa
 

@@ -26,10 +26,9 @@ object OrderRoutes:
           response <- Created(order.asJson)
         yield response
 
-      case GET -> Root / "orders" / UUIDVar(orderId) =>
-        orderService.getOrder(OrderId(orderId)).flatMap {
+      case GET -> Root / "orders" / UUIDVar(orderId) => orderService.getOrder(OrderId(orderId)).flatMap {
           case Some(order) => Ok(order.asJson)
-          case None => NotFound()
+          case None        => NotFound()
         }
 
       case GET -> Root / "users" / userId / "orders" =>

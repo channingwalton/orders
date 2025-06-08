@@ -21,8 +21,7 @@ class OrderRoutesTest extends CatsEffectSuite:
     for
       service <- createMockOrderService()
       routes = OrderRoutes.routes[IO](service)
-      request = Request[IO](Method.POST, uri"/orders")
-        .withEntity(CreateOrderRequest("user1", "monthly").asJson)
+      request = Request[IO](Method.POST, uri"/orders").withEntity(CreateOrderRequest("user1", "monthly").asJson)
       response <- routes.orNotFound.run(request)
     yield {
       assertEquals(response.status, Status.Created)
@@ -63,40 +62,47 @@ class OrderRoutesTest extends CatsEffectSuite:
     }
   }
 
-  private def createMockOrderService(): IO[OrderService[IO]] =
-    IO.pure(new OrderService[IO] {
-      def createOrder(request: CreateOrderRequest): IO[Order] =
-        IO.pure(Order(
-          OrderId(UUID.randomUUID()),
-          UserId(request.userId),
-          acme.orders.models.ProductId(request.productId),
-          OrderStatus.Active,
-          Instant.now(),
-          Instant.now()
-        ))
+  private def createMockOrderService(): IO[OrderService[IO]] = IO.pure(new OrderService[IO] {
+    def createOrder(request: CreateOrderRequest): IO[Order] = IO.pure(
+      Order(
+        OrderId(UUID.randomUUID()),
+        UserId(request.userId),
+        acme.orders.models.ProductId(request.productId),
+        OrderStatus.Active,
+        Instant.now(),
+        Instant.now()
+      )
+    )
 
-      def getOrder(orderId: OrderId): IO[Option[Order]] =
-        IO.pure(Some(Order(
+    def getOrder(orderId: OrderId): IO[Option[Order]] = IO.pure(
+      Some(
+        Order(
           orderId,
           UserId("user1"),
           acme.orders.models.ProductId("monthly"),
           OrderStatus.Active,
           Instant.now(),
           Instant.now()
-        )))
+        )
+      )
+    )
 
-      def getUserOrders(userId: UserId): IO[List[Order]] =
-        IO.pure(List(Order(
+    def getUserOrders(userId: UserId): IO[List[Order]] = IO.pure(
+      List(
+        Order(
           OrderId(UUID.randomUUID()),
           userId,
           acme.orders.models.ProductId("monthly"),
           OrderStatus.Active,
           Instant.now(),
           Instant.now()
-        )))
+        )
+      )
+    )
 
-      def getUserSubscriptions(userId: UserId): IO[List[Subscription]] =
-        IO.pure(List(Subscription(
+    def getUserSubscriptions(userId: UserId): IO[List[Subscription]] = IO.pure(
+      List(
+        Subscription(
           SubscriptionId(UUID.randomUUID()),
           OrderId(UUID.randomUUID()),
           userId,
@@ -106,8 +112,9 @@ class OrderRoutesTest extends CatsEffectSuite:
           SubscriptionStatus.Active,
           Instant.now(),
           Instant.now()
-        )))
+        )
+      )
+    )
 
-      def cancelOrder(orderId: OrderId): IO[Unit] =
-        IO.unit
-    })
+    def cancelOrder(orderId: OrderId): IO[Unit] = IO.unit
+  })

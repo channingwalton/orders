@@ -67,3 +67,23 @@ Write a readme.md that describes the project and its API.
 
 Run `sup` on the command line to see what can be updated. If after updating all the tests pass then commit and push.
 
+## Process 
+- Before pushing code to the repo, run `sbt commitCheck` and only push when that passes
+
+## Reviews
+
+### 1. PostgresStoreTest
+
+Rather than
+
+```scala
+store <- PostgresStore.resource[IO](config).use(IO.pure)
+```
+
+create the store and then use it in the body of the test:
+
+```scala
+PostgresStore.resource[IO](config).use { store =>
+  // the test
+}
+```

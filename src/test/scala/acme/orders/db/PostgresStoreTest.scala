@@ -124,4 +124,3 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
     createdAt = Instant.now(),
     updatedAt = Instant.now()
   )
-
