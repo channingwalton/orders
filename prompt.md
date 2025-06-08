@@ -59,3 +59,6 @@ Add a Github action to build the code and add tests using:
       shell: bash
       run: sbt ci
 
+## Documentation
+
+Write a readme.md that describes the project and its API.
