@@ -5,6 +5,7 @@ import java.util.UUID
 
 import acme.orders.models._
 import cats.effect._
+import cats.syntax.all._
 import com.dimafeng.testcontainers.PostgreSQLContainer
 import com.dimafeng.testcontainers.munit.TestContainerForEach
 import munit.CatsEffectSuite
@@ -50,9 +51,13 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
           val order2 = createTestOrder(userId = userId)
           val order3 = createTestOrder(userId = UserId("user2"))
           for
-            _ <- store.commit(store.createOrder(order1))
-            _ <- store.commit(store.createOrder(order2))
-            _ <- store.commit(store.createOrder(order3))
+            // Create all test orders in single transaction
+            _ <- store.commit(
+              store.createOrder(order1) *>
+                store.createOrder(order2) *>
+                store.createOrder(order3)
+            )
+
             userOrders <- store.commit(store.findOrdersByUser(userId))
           yield {
             assertEquals(userOrders.length, 2)
@@ -72,8 +77,12 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
           val order = createTestOrder()
           val subscription = createTestSubscription(order.id, order.userId)
           for
-            _ <- store.commit(store.createOrder(order))
-            _ <- store.commit(store.createSubscription(subscription))
+            // Create order and subscription in single transaction
+            _ <- store.commit(
+              store.createOrder(order) *>
+                store.createSubscription(subscription)
+            )
+
             subscriptions <- store.commit(store.findSubscriptionsByUser(order.userId))
           yield {
             assertEquals(subscriptions.length, 1)
@@ -146,12 +155,17 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
           )
 
           for
-            _ <- store.commit(store.createOrder(order1))
-            _ <- store.commit(store.createOrder(order2))
-            _ <- store.commit(store.createOrder(order3))
-            _ <- store.commit(store.createSubscription(activeSubscription))
-            _ <- store.commit(store.createSubscription(expiredSubscription))
-            _ <- store.commit(store.createSubscription(cancelledSubscription))
+            // Setup all test data in a single transaction
+            _ <- store.commit(
+              store.createOrder(order1) *>
+                store.createOrder(order2) *>
+                store.createOrder(order3) *>
+                store.createSubscription(activeSubscription) *>
+                store.createSubscription(expiredSubscription) *>
+                store.createSubscription(cancelledSubscription)
+            )
+
+            // Query for active subscriptions
             activeSubscriptions <- store.commit(store.findActiveSubscriptionsByUser(userId))
           yield {
             assertEquals(activeSubscriptions.length, 1)
@@ -182,8 +196,12 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
           )
 
           for
-            _ <- store.commit(store.createOrder(order))
-            _ <- store.commit(store.createSubscription(expiredSubscription))
+            // Create test data in single transaction
+            _ <- store.commit(
+              store.createOrder(order) *>
+                store.createSubscription(expiredSubscription)
+            )
+
             activeSubscriptions <- store.commit(store.findActiveSubscriptionsByUser(userId))
           yield {
             assertEquals(activeSubscriptions.length, 0)
@@ -270,15 +288,21 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
           val cancelledOrder = order.copy(status = OrderStatus.Cancelled, updatedAt = updatedTime)
 
           for
-            _ <- store.commit(store.createOrder(order))
-            _ <- store.commit(store.createSubscription(subscription))
+            // Initial setup in single transaction
+            _ <- store.commit(
+              store.createOrder(order) *>
+                store.createSubscription(subscription)
+            )
 
+            // Query initial state
             initialOrders <- store.commit(store.findOrdersByUser(userId))
             initialSubscriptions <- store.commit(store.findSubscriptionsByUser(userId))
             initialActiveSubscriptions <- store.commit(store.findActiveSubscriptionsByUser(userId))
 
+            // Update order status
             _ <- store.commit(store.updateOrder(cancelledOrder))
 
+            // Query final state
             finalOrder <- store.commit(store.findOrder(order.id))
             finalOrders <- store.commit(store.findOrdersByUser(userId))
           yield {
@@ -313,13 +337,17 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
           val subscription3 = createTestSubscription(order3.id, user2)
 
           for
-            _ <- store.commit(store.createOrder(order1))
-            _ <- store.commit(store.createOrder(order2))
-            _ <- store.commit(store.createOrder(order3))
-            _ <- store.commit(store.createSubscription(subscription1))
-            _ <- store.commit(store.createSubscription(subscription2))
-            _ <- store.commit(store.createSubscription(subscription3))
+            // Setup all data in a single transaction
+            _ <- store.commit(
+              store.createOrder(order1) *>
+                store.createOrder(order2) *>
+                store.createOrder(order3) *>
+                store.createSubscription(subscription1) *>
+                store.createSubscription(subscription2) *>
+                store.createSubscription(subscription3)
+            )
 
+            // Query data - separate commits for clarity
             user1Orders <- store.commit(store.findOrdersByUser(user1))
             user2Orders <- store.commit(store.findOrdersByUser(user2))
             user1Subscriptions <- store.commit(store.findSubscriptionsByUser(user1))
