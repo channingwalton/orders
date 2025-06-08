@@ -16,7 +16,7 @@ trait OrderService[F[_]]:
   def getUserSubscriptions(userId: UserId): F[List[Subscription]]
   def cancelOrder(orderId: OrderId): F[Unit]
 
-class OrderServiceImpl[F[_]: MonadThrow, G[_]](
+class OrderServiceImpl[F[_]: MonadThrow, G[_]: MonadThrow](
   store: Store[F, G],
   clock: Clock[F]
 ) extends OrderService[F]:
@@ -29,9 +29,13 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]](
       productId = ProductId(request.productId)
       _ <- validateProduct(productId)
       order = Order(orderId, userId, productId, OrderStatus.Active, now, now)
-      _ <- store.commit(store.createOrder(order))
       subscription <- createSubscriptionForOrder(order, now)
-      _ <- store.commit(store.createSubscription(subscription))
+      _ <- store.commit(
+        for
+          _ <- store.createOrder(order)
+          _ <- store.createSubscription(subscription)
+        yield ()
+      )
     yield order
 
   def getOrder(orderId: OrderId): F[Option[Order]] = store.commit(store.findOrder(orderId))
@@ -42,11 +46,15 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]](
 
   def cancelOrder(orderId: OrderId): F[Unit] =
     for
-      orderOpt <- store.commit(store.findOrder(orderId))
-      order <- orderOpt.liftTo[F](ServiceError.OrderNotFound(orderId))
       now <- clock.realTimeInstant
-      cancelledOrder = order.copy(status = OrderStatus.Cancelled, updatedAt = now)
-      _ <- store.commit(store.updateOrder(cancelledOrder))
+      _ <- store.commit(
+        for
+          orderOpt <- store.findOrder(orderId)
+          order <- orderOpt.liftTo[G](ServiceError.OrderNotFound(orderId))
+          cancelledOrder = order.copy(status = OrderStatus.Cancelled, updatedAt = now)
+          _ <- store.updateOrder(cancelledOrder)
+        yield ()
+      )
     yield ()
 
   private def validateProduct(productId: ProductId): F[Unit] = Product.values.find(_.id == productId) match
@@ -74,11 +82,11 @@ class OrderServiceImpl[F[_]: MonadThrow, G[_]](
     case None => ServiceError.InvalidProduct(order.productId).raiseError[F, Subscription]
 
 object OrderService:
-  def apply[F[_]: MonadThrow: Clock, G[_]](
+  def apply[F[_]: MonadThrow: Clock, G[_]: MonadThrow](
     store: Store[F, G]
   ): OrderService[F] = new OrderServiceImpl(store, Clock[F])
 
-  def apply[F[_]: MonadThrow, G[_]](
+  def apply[F[_]: MonadThrow, G[_]: MonadThrow](
     store: Store[F, G],
     clock: Clock[F]
   ): OrderService[F] = new OrderServiceImpl(store, clock)
