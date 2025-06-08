@@ -62,3 +62,8 @@ Add a Github action to build the code and add tests using:
 ## Documentation
 
 Write a readme.md that describes the project and its API.
+
+## Updating the project
+
+Run `sup` on the command line to see what can be updated. If after updating all the tests pass then commit and push.
+
