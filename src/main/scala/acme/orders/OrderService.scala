@@ -5,7 +5,8 @@ import java.util.UUID
 
 import acme.orders.db.Store
 import acme.orders.models._
-import acme.orders.utils.TimeUtils
+import acme.orders.utils.LoggingContext._
+import acme.orders.utils.{LoggingContext, TimeUtils}
 import cats.MonadThrow
 import cats.effect._
 import cats.syntax.all._
@@ -30,18 +31,13 @@ class OrderServiceImpl[F[_]: LoggerFactory: MonadThrow: Sync, G[_]: MonadThrow](
 
   def createOrder(request: CreateOrderRequest): F[Order] =
     for
-      _ <- logger.info(
-        Map(
-          "operation" -> "createOrder",
-          "userId" -> request.userId,
-          "productId" -> request.productId
-        )
-      )("Creating order")
       rawNow <- clock.realTimeInstant
       now = TimeUtils.truncateToSeconds(rawNow)
       orderId = OrderId(UUID.randomUUID())
       userId = UserId(request.userId)
       productId = ProductId(request.productId)
+      baseContext = LoggingContext.withOperation("createOrder").withUserId(userId).withProductId(productId)
+      _ <- logger.infoWithContext(baseContext)("Creating order")
       _ <- validateProduct(productId)
       order = Order(orderId, userId, productId, OrderStatus.Active, now, now)
       subscription <- createSubscriptionForOrder(order, now)
@@ -51,14 +47,8 @@ class OrderServiceImpl[F[_]: LoggerFactory: MonadThrow: Sync, G[_]: MonadThrow](
           _ <- store.createSubscription(subscription)
         yield ()
       )
-      _ <- logger.info(
-        Map(
-          "operation" -> "createOrder",
-          "userId" -> request.userId,
-          "orderId" -> orderId.value.toString,
-          "productId" -> request.productId
-        )
-      )("Order created successfully")
+      enrichedContext = baseContext.withOrderId(orderId)
+      _ <- logger.infoWithContext(enrichedContext)("Order created successfully")
     yield order
 
   def getOrder(orderId: OrderId): F[Option[Order]] = store.commit(store.findOrder(orderId))
@@ -81,17 +71,16 @@ class OrderServiceImpl[F[_]: LoggerFactory: MonadThrow: Sync, G[_]: MonadThrow](
 
   def cancelOrder(orderId: OrderId, request: CancelOrderRequest): F[Unit] =
     for
-      _ <- logger.info(
-        Map(
-          "operation" -> "cancelOrder",
-          "orderId" -> orderId.value.toString,
-          "reason" -> request.reason.map(_.toString).getOrElse("UserRequest"),
-          "cancellationType" -> request.cancellationType.map(_.toString).getOrElse("Immediate")
-        )
-      )("Cancelling order")
+      baseContext <- LoggingContext
+        .withOperation("cancelOrder")
+        .withOrderId(orderId)
+        .withCustom("reason", request.reason.map(_.toString).getOrElse("UserRequest"))
+        .withCustom("cancellationType", request.cancellationType.map(_.toString).getOrElse("Immediate"))
+        .pure[F]
+      _ <- logger.infoWithContext(baseContext)("Cancelling order")
       rawNow <- clock.realTimeInstant
       now = TimeUtils.truncateToSeconds(rawNow)
-      _ <- store.commit(
+      subscriptionCount <- store.commit(
         for
           orderOpt <- store.findOrder(orderId)
           order <- orderOpt.liftTo[G](ServiceError.OrderNotFound(orderId))
@@ -126,28 +115,19 @@ class OrderServiceImpl[F[_]: LoggerFactory: MonadThrow: Sync, G[_]: MonadThrow](
           _ <- store.updateOrder(cancelledOrder)
           _ <- store.createOrderCancellation(cancellation)
           _ <- cancelledSubscriptions.traverse(store.updateSubscription)
-        yield ()
+        yield subscriptions.size
       )
-      _ <- logger.info(
-        Map(
-          "operation" -> "cancelOrder",
-          "orderId" -> orderId.value.toString,
-          "reason" -> request.reason.map(_.toString).getOrElse("UserRequest"),
-          "subscriptionCount" -> "updated"
-        )
-      )("Order cancelled successfully")
+      successContext = baseContext.withCustom("subscriptionCount", subscriptionCount.toString)
+      _ <- logger.infoWithContext(successContext)("Order cancelled successfully")
     yield ()
 
   def getOrderCancellation(orderId: OrderId): F[Option[OrderCancellation]] = store.commit(store.findOrderCancellation(orderId))
 
   private def validateProduct(productId: ProductId): F[Unit] = Product.values.find(_.id == productId) match
     case Some(_) => ().pure[F]
-    case None => logger.warn(
-        Map(
-          "operation" -> "validateProduct",
-          "productId" -> productId.value
-        )
-      )("Invalid product validation failed") *>
+    case None =>
+      val context = LoggingContext.withOperation("validateProduct").withProductId(productId)
+      logger.warnWithContext(context)("Invalid product validation failed") *>
         ServiceError.InvalidProduct(productId).raiseError[F, Unit]
 
   private def createSubscriptionForOrder(order: Order, now: Instant): F[Subscription] = Product.values.find(_.id == order.productId) match

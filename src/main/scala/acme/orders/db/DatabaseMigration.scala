@@ -1,5 +1,7 @@
 package acme.orders.db
 
+import acme.orders.utils.LoggingContext
+import acme.orders.utils.LoggingContext._
 import cats.effect.Sync
 import cats.syntax.all._
 import org.flywaydb.core.Flyway
@@ -13,13 +15,13 @@ object DatabaseMigration:
 
   def migrate[F[_]: Sync: LoggerFactory](dbConfig: PostgresStore.DatabaseConfig): F[MigrateResult] =
     val logger: SelfAwareStructuredLogger[F] = LoggerFactory[F].getLogger
+    val baseContext = LoggingContext.withOperation("databaseMigration")
     Sync[F]
       .blocking(flywayFromConfig(dbConfig).migrate())
       .handleErrorWith { t =>
-        logger.error(Map("operation" -> "databaseMigration"), t)(s"Failed to migrate database. ${t.getMessage}") >> t.raiseError[F, MigrateResult]
+        logger.errorWithContext(baseContext, t)(s"Failed to migrate database. ${t.getMessage}") >> t.raiseError[F, MigrateResult]
       }
       .flatTap { result =>
-        logger.info(Map("operation" -> "databaseMigration", "warningCount" -> result.warnings.size.toString))(
-          s"Database migrated. Warnings: ${result.warnings.size}"
-        )
+        val successContext = baseContext.withCustom("warningCount", result.warnings.size.toString)
+        logger.infoWithContext(successContext)(s"Database migrated. Warnings: ${result.warnings.size}")
       }
