@@ -16,10 +16,13 @@ This system manages orders and subscriptions for streaming services. When an ord
 
 ## Features
 
-- **Order Management**: Create, retrieve, and cancel orders
-- **Subscription Management**: Automatic subscription creation and management
+- **Order Management**: Create, retrieve, and cancel orders with detailed cancellation tracking
+- **Subscription Management**: Automatic subscription creation and management with status tracking
 - **Product Types**: Monthly and annual subscription products
-- **Database Integration**: PostgreSQL with Flyway migrations
+- **Advanced Cancellation**: Support for immediate or end-of-period cancellations with reasons
+- **User Status Tracking**: Get user subscription status and cancellation details
+- **Database Integration**: PostgreSQL with Flyway migrations and timestamp precision handling
+- **Structured Logging**: Comprehensive logging with correlation IDs and context tracking
 - **Comprehensive Testing**: Unit tests with testcontainers for database integration
 
 ## API Endpoints
@@ -58,12 +61,40 @@ GET /users/{userId}/subscriptions
 
 **Response**: Returns a list of all subscriptions for the specified user.
 
-### Cancel Order
+### Get User Subscription Status
+```
+GET /users/{userId}/subscription-status
+```
+
+**Response**: Returns the user's subscription status including active subscriptions count.
+
+### Cancel Order (Simple)
 ```
 PUT /orders/{orderId}/cancel
 ```
 
 **Response**: Returns 204 No Content on success.
+
+### Cancel Order (Advanced)
+```
+PUT /orders/{orderId}/cancel
+Content-Type: application/json
+
+{
+  "reason": "UserRequest",
+  "cancellationType": "Immediate",
+  "notes": "Customer requested cancellation"
+}
+```
+
+**Response**: Returns 204 No Content on success.
+
+### Get Order Cancellation Details
+```
+GET /orders/{orderId}/cancellation
+```
+
+**Response**: Returns cancellation details or 404 if order was not cancelled.
 
 ## Product Types
 
@@ -94,8 +125,36 @@ PUT /orders/{orderId}/cancel
   "startDate": "2024-01-01T00:00:00Z",
   "endDate": "2024-02-01T00:00:00Z",
   "status": "active|expired|cancelled",
+  "cancelledAt": "2024-01-15T00:00:00Z",
+  "effectiveEndDate": "2024-02-01T00:00:00Z",
   "createdAt": "2024-01-01T00:00:00Z",
   "updatedAt": "2024-01-01T00:00:00Z"
+}
+```
+
+### UserSubscriptionStatus
+```json
+{
+  "userId": "string",
+  "isSubscribed": true,
+  "activeSubscriptions": [...],
+  "subscriptionCount": 2
+}
+```
+
+### OrderCancellation
+```json
+{
+  "id": "uuid",
+  "orderId": "uuid",
+  "reason": "UserRequest|PaymentFailure|Violation|Other",
+  "cancellationType": "Immediate|EndOfPeriod",
+  "notes": "Optional cancellation notes",
+  "cancelledAt": "2024-01-15T00:00:00Z",
+  "cancelledBy": "User|System|Admin",
+  "effectiveDate": "2024-01-15T00:00:00Z",
+  "createdAt": "2024-01-15T00:00:00Z",
+  "updatedAt": "2024-01-15T00:00:00Z"
 }
 ```
 
@@ -107,6 +166,7 @@ PUT /orders/{orderId}/cancel
 - **PostgreSQL**: Database
 - **Flyway**: Database migrations
 - **Circe**: JSON encoding/decoding
+- **log4cats**: Structured logging with correlation IDs
 - **munit**: Testing framework
 - **testcontainers**: Integration testing with Docker
 
@@ -240,10 +300,27 @@ curl http://localhost:8080/users/user123/orders
 curl http://localhost:8080/users/user123/subscriptions
 ```
 
-#### Cancel an Order
+#### Get User Subscription Status
+```bash
+curl http://localhost:8080/users/user123/subscription-status
+```
+
+#### Cancel an Order (Simple)
 ```bash
 # Replace {orderId} with an actual order ID
 curl -X PUT http://localhost:8080/orders/{orderId}/cancel
+```
+
+#### Cancel an Order (Advanced)
+```bash
+curl -X PUT http://localhost:8080/orders/{orderId}/cancel \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "UserRequest", "cancellationType": "EndOfPeriod", "notes": "Customer wants to finish current period"}'
+```
+
+#### Get Order Cancellation Details
+```bash
+curl http://localhost:8080/orders/{orderId}/cancellation
 ```
 
 #### Example Complete Workflow
