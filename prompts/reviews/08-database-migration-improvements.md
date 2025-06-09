@@ -50,17 +50,17 @@ def migrate[F[_]: Sync: StructuredLogger](dbConfig: JDBCConfig): F[MigrateResult
 
 ## Acceptance Criteria
 
-- [ ] Replace current `Try`/`Either` error handling with functional effects
-- [ ] Add `F[_]: Sync` type parameter for effect management
-- [ ] Integrate with existing `StructuredLogger` system
-- [ ] Add connection retry configuration (`connectRetries(10)`)
-- [ ] Use proper functional error handling with `handleErrorWith`
-- [ ] Log migration results including warnings
-- [ ] Separate Flyway configuration into `protected[database]` method
-- [ ] Update password access to use `.value` method
-- [ ] Ensure all existing tests continue to pass
-- [ ] Update any dependent code to use new signature
+- [x] Replace current `Try`/`Either` error handling with functional effects
+- [x] Add `F[_]: Sync` type parameter for effect management
+- [x] Integrate with existing `StructuredLogger` system
+- [x] Add connection retry configuration (`connectRetries(10)`)
+- [x] Use proper functional error handling with `handleErrorWith`
+- [x] Log migration results including warnings
+- [x] Separate Flyway configuration into `protected[db]` method
+- [x] Update password access to use `.value` method
+- [x] Ensure all existing tests continue to pass
+- [x] Update any dependent code to use new signature
 
 ## Status
 
-🔴 **Pending** - Awaiting implementation of functional database migration improvements
+🟢 **Complete** - Functional database migration improvements implemented with structured logging and error handling

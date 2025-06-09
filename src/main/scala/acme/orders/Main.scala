@@ -30,7 +30,4 @@ object Main extends IOApp:
         .build
     yield server).useForever.as(ExitCode.Success)
 
-  private def runMigrations(config: Config): IO[Unit] =
-    IO.fromEither(DatabaseMigration.migrate(config.database).left.map(msg => new RuntimeException(msg))).adaptError { case ex =>
-      new RuntimeException(s"Migration failed: ${ex.getMessage}", ex)
-    }
+  private def runMigrations(config: Config)(implicit lf: LoggerFactory[IO]): IO[Unit] = DatabaseMigration.migrate[IO](config.database).void

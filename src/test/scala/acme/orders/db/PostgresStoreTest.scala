@@ -11,6 +11,8 @@ import com.dimafeng.testcontainers.PostgreSQLContainer
 import com.dimafeng.testcontainers.munit.TestContainerForEach
 import munit.CatsEffectSuite
 import org.testcontainers.utility.DockerImageName
+import org.typelevel.log4cats.LoggerFactory
+import org.typelevel.log4cats.slf4j.Slf4jFactory
 
 class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
 
@@ -386,7 +388,8 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
   )
 
   private def migrateDatabase(config: PostgresStore.DatabaseConfig): IO[Unit] =
-    IO.fromEither(DatabaseMigration.migrate(config).left.map(msg => new RuntimeException(msg)))
+    implicit val loggerFactory: LoggerFactory[IO] = Slf4jFactory.create[IO]
+    DatabaseMigration.migrate[IO](config).void
 
   private def createTestOrder(
     id: OrderId = OrderId(UUID.randomUUID()),
