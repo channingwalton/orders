@@ -379,6 +379,149 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
     }
   }
 
+  test("createOrderCancellation and findOrderCancellation should work") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val order = createTestOrder()
+          val cancellation = createTestOrderCancellation(order.id)
+
+          for
+            _ <- store.commit(
+              store.createOrder(order) *>
+                store.createOrderCancellation(cancellation)
+            )
+            foundCancellation <- store.commit(store.findOrderCancellation(order.id))
+          yield {
+            assert(foundCancellation.isDefined)
+            assertEquals(foundCancellation.get.id, cancellation.id)
+            assertEquals(foundCancellation.get.orderId, order.id)
+            assertEquals(foundCancellation.get.reason, CancellationReason.UserRequest)
+            assertEquals(foundCancellation.get.cancellationType, CancellationType.Immediate)
+            assertEquals(foundCancellation.get.notes, Some("User requested cancellation"))
+          }
+        }
+      yield result
+    }
+  }
+
+  test("findOrderCancellation should return None for non-cancelled order") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val order = createTestOrder()
+
+          for
+            _ <- store.commit(store.createOrder(order))
+            foundCancellation <- store.commit(store.findOrderCancellation(order.id))
+          yield {
+            assertEquals(foundCancellation, None)
+          }
+        }
+      yield result
+    }
+  }
+
+  test("updateSubscription should update cancellation fields") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val order = createTestOrder()
+          val subscription = createTestSubscription(order.id, order.userId)
+          val now = TimeUtils.now()
+          val cancelledSubscription = subscription.copy(
+            status = SubscriptionStatus.Cancelled,
+            cancelledAt = Some(now),
+            effectiveEndDate = Some(now.plusSeconds(3600)),
+            updatedAt = now
+          )
+
+          for
+            _ <- store.commit(
+              store.createOrder(order) *>
+                store.createSubscription(subscription)
+            )
+            _ <- store.commit(store.updateSubscription(cancelledSubscription))
+            foundSubscriptions <- store.commit(store.findSubscriptionsByUser(order.userId))
+          yield {
+            assertEquals(foundSubscriptions.length, 1)
+            val found = foundSubscriptions.head
+            assertEquals(found.status, SubscriptionStatus.Cancelled)
+            assert(found.cancelledAt.isDefined)
+            assert(found.effectiveEndDate.isDefined)
+            assert(found.cancelledAt.get.isAfter(subscription.createdAt.minusSeconds(1)))
+          }
+        }
+      yield result
+    }
+  }
+
+  test("findActiveSubscriptionsByUser should exclude cancelled subscriptions") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val userId = UserId("user1")
+          val order1 = createTestOrder(userId = userId)
+          val order2 = createTestOrder(userId = userId)
+
+          val activeSubscription = createTestSubscription(order1.id, userId)
+          val cancelledSubscription = createTestSubscription(order2.id, userId).copy(
+            status = SubscriptionStatus.Cancelled,
+            cancelledAt = Some(TimeUtils.now())
+          )
+
+          for
+            _ <- store.commit(
+              store.createOrder(order1) *>
+                store.createOrder(order2) *>
+                store.createSubscription(activeSubscription) *>
+                store.createSubscription(cancelledSubscription)
+            )
+            activeSubscriptions <- store.commit(store.findActiveSubscriptionsByUser(userId))
+            allSubscriptions <- store.commit(store.findSubscriptionsByUser(userId))
+          yield {
+            assertEquals(allSubscriptions.length, 2)
+            assertEquals(activeSubscriptions.length, 1)
+            assertEquals(activeSubscriptions.head.status, SubscriptionStatus.Active)
+          }
+        }
+      yield result
+    }
+  }
+
+  test("findSubscriptionsByOrder should return subscriptions for specific order") {
+    withContainers { case postgres: PostgreSQLContainer =>
+      for
+        config <- createDatabaseConfig(postgres)
+        _ <- migrateDatabase(config)
+        result <- PostgresStore.resource[IO](config).use { store =>
+          val userId = UserId("user1")
+          val order = createTestOrder(userId = userId)
+          val subscription = createTestSubscription(order.id, userId)
+
+          for
+            _ <- store.commit(
+              store.createOrder(order) *>
+                store.createSubscription(subscription)
+            )
+            subscriptions <- store.commit(store.findSubscriptionsByOrder(order.id))
+          yield {
+            assertEquals(subscriptions.length, 1)
+            assertEquals(subscriptions.head.orderId, order.id)
+          }
+        }
+      yield result
+    }
+  }
+
   private def createDatabaseConfig(postgres: PostgreSQLContainer): IO[PostgresStore.DatabaseConfig] = IO.pure(
     PostgresStore.DatabaseConfig(
       url = postgres.jdbcUrl,
@@ -440,3 +583,23 @@ class PostgresStoreTest extends CatsEffectSuite with TestContainerForEach:
     createdAt = TimeUtils.now(),
     updatedAt = TimeUtils.now()
   )
+
+  private def createTestOrderCancellation(
+    orderId: OrderId,
+    reason: CancellationReason = CancellationReason.UserRequest,
+    cancellationType: CancellationType = CancellationType.Immediate,
+    notes: Option[String] = Some("User requested cancellation")
+  ): OrderCancellation =
+    val now = TimeUtils.now()
+    OrderCancellation(
+      id = OrderCancellationId(UUID.randomUUID()),
+      orderId = orderId,
+      reason = reason,
+      cancellationType = cancellationType,
+      notes = notes,
+      cancelledAt = now,
+      cancelledBy = CancelledBy.User,
+      effectiveDate = now,
+      createdAt = now,
+      updatedAt = now
+    )
